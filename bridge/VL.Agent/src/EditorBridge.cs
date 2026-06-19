@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Text.Json;
 using VL.HDE;
 using VL.Lang.PublicAPI;
@@ -60,7 +61,7 @@ public static class EditorBridge
     private static SelSnapshot DescribeSelected(object? o)
     {
         if (o is null) return new SelSnapshot("null", null, null, null, null, null);
-        var type = o.GetType().Name;
+        var type = o.GetType().FullName ?? o.GetType().Name;
 
         if (o is ILiveElement live)
         {
@@ -70,13 +71,47 @@ public static class EditorBridge
                 info?.SymbolInfoString, info?.IsUnused, messages);
         }
 
-        return new SelSnapshot(type, null, o.ToString(), null, null, null);
+        // Unknown selection object: emit a self-diagnosing dump (interfaces + readable
+        // properties) so we can see exactly how to extract its id/name. Also make a
+        // best effort to surface an id from a property named like an id.
+        var interfaces = o.GetType().GetInterfaces().Select(i => i.Name).OrderBy(n => n).ToArray();
+        var props = ReadProperties(o);
+        var id = props.TryGetValue("ElementID", out var ev) ? ev
+               : props.TryGetValue("Id", out var iv) ? iv
+               : props.GetValueOrDefault("Identity");
+        var name = props.GetValueOrDefault("Name") ?? o.ToString();
+
+        return new SelSnapshot(type, null, name, null, null, null, interfaces, props, id);
     }
 
-    private static readonly JsonSerializerOptions SnapshotJson = new() { WriteIndented = true };
+    /// <summary>Reflectively read public instance properties, guarded and truncated.</summary>
+    private static Dictionary<string, string?> ReadProperties(object o)
+    {
+        var result = new Dictionary<string, string?>(StringComparer.Ordinal);
+        foreach (var p in o.GetType().GetProperties(BindingFlags.Public | BindingFlags.Instance))
+        {
+            if (p.GetIndexParameters().Length > 0 || !p.CanRead) continue;
+            try
+            {
+                var v = p.GetValue(o)?.ToString();
+                if (v is { Length: > 200 }) v = v[..200] + "…";
+                result[p.Name] = v;
+            }
+            catch (Exception ex) { result[p.Name] = "<err: " + ex.GetType().Name + ">"; }
+        }
+        return result;
+    }
+
+    private static readonly JsonSerializerOptions SnapshotJson = new()
+    {
+        WriteIndented = true,
+        DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+    };
 
     private record EditorSnapshot(DocSnapshot[] Documents, SelSnapshot[] Selection, MsgSnapshot[] CompilerMessages);
     private record DocSnapshot(string? Path, string? Name, bool IsChanged, bool IsReadOnly);
-    private record SelSnapshot(string Type, uint? Id, string? Name, string? Symbol, bool? IsUnused, string[]? Messages);
+    private record SelSnapshot(
+        string Type, uint? Id, string? Name, string? Symbol, bool? IsUnused, string[]? Messages,
+        string[]? Interfaces = null, Dictionary<string, string?>? Properties = null, string? ProbedId = null);
     private record MsgSnapshot(string Severity, string? What, string? Why);
 }
