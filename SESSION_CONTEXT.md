@@ -61,12 +61,23 @@ A viable vvvv-agent should be layered:
 - `VL.Agent.Probes`: channel-based runtime probes/debug publishing nodes.
 - `vl-test-init`: generate VL.TestFramework scaffolding and smoke tests.
 
-## Key missing information to investigate on Windows
+## Windows API validation (2026-06-19) — RESOLVED via `tools/vl-probe`
 
-- Exact current `VL.Lang` Session API surface.
-- Whether editor-safe patch mutations can be performed from `.HDE.vl` or C# with undo integration.
-- How much live pin/node/runtime state is introspectable.
-- Exact current gamma host/compiler/session APIs, if accessible.
+Validated against installed gamma 7.2 by metadata reflection (no vvvv code run). Full writeup: `research/windows-api-validation-findings.md`. Key confirmations:
+
+- **Session API**: `VL.Lang.PublicAPI.IDevSession` (`Current`, `CurrentSolution`, `OpenDocument`, `ShowPatchOfNode`, `Paste(modelSnippet, location)`) + `SessionNodes` wrapper.
+- **Editor state**: `VL.HDE.API` exposes `HoveredElement`, `CurrentSelection`/`Selection`, `LoadedDocuments`, `ActiveLiveCanvasStream`, `InstalledVLPackages`, key folders — all as channels/observables.
+- **Telemetry**: `VL.HDE.API.Messages` / `LatestMessagesFromAllRuntimes` / `LatestMessagesFromCompiler`; `ILiveElement.DataStream` + per-element `Messages`.
+- **Live introspection depth**: deep — `VL.Model.Document/Patch/Node/Pin` fully readable.
+- **Patch mutation**: `VL.Model.Patch/Node/Pin` already provide the proposed IR as fluent builders (`AddPad`/`AddPin`/`GetOrAddLink`/`With*`); editor-mediated undo-safe path = `IDevSession.Paste`. Agent should target these, not hand-written `.vl` XML.
+- **Annotation back into editor**: `SessionNodes.AddMessage`/`AddPersistentMessage` on a `UniqueId`.
+
+## Still open (needs RUNTIME test, not metadata)
+
+- Reachability of `VL.HDE.API` + `IDevSession.Current` from an `.HDE.vl`/C# node, and whether channels tick.
+- Exact `IDevSession.Paste` `modelSnippet` string format.
+- Whether programmatic `Document`/`Patch` edits + `SaveAsync` round-trip live (vs. only the `Paste` path being safe).
+- VL.TestFramework pack location/version on this install.
 - Package resolver/cache/editable package behaviour in practice.
 - VL.Stride/Fuse internal runtime and shader graph details.
 
