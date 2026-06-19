@@ -1,54 +1,73 @@
-# tools/
+# tools
 
-Standalone .NET 10 command-line tools that make up the read-only intelligence
-layer of the vvvv-agent. All are **static / metadata-only** — they never execute
-vvvv code, so they are safe to run against any project or install.
+Standalone .NET 10 command-line tools for inspecting vvvv gamma projects and
+exposing that information to MCP clients.
 
-## `vl-probe` — API surface dumper
+The tools are static/metadata-only unless explicitly noted. They do not execute a
+vvvv project.
 
-Reflects (metadata-only, via `MetadataLoadContext`) over the assemblies shipped
-with a vvvv gamma install and dumps their public API. Used to validate which
-editor/runtime/model APIs the agent can build on. Produced
+## `vl-probe`
+
+Metadata-only API surface dumper for a vvvv gamma installation. It uses
+`MetadataLoadContext` to inspect assemblies and was used to produce
 `research/windows-api-validation-findings.md`.
 
-```bash
-cd vl-probe
-dotnet run -c Release                                   # defaults to gamma 7.2
-dotnet run -c Release -- --install "<install dir>" \
-    --targets VL.Lang.dll,VL.HDE.dll,VL.Core.dll --out <dir>
+```powershell
+cd tools\vl-probe
+dotnet run -c Release
+dotnet run -c Release -- --install "C:\Program Files\vvvv\vvvv_gamma_7.2-win-x64" --targets VL.Lang.dll,VL.HDE.dll,VL.Core.dll --out output
 ```
 
-Outputs `api-full.md` (every public type) and `api-bridge-relevant.md`
-(keyword-filtered to Session/Node/Pin/Command/Channel/…).
+Outputs:
 
-## `vl-map` — project cartographer
+- `api-full.md`
+- `api-bridge-relevant.md`
 
-Indexes a vvvv project: walks `.vl`/`.cs`/`.csproj`/`.sdsl`, parses every `.vl`
-document, and emits a structured JSON index plus a human-readable summary.
+## `vl-map`
 
-```bash
-cd vl-map
-dotnet run -c Release -- --project "<project dir>" [--out vl-map.json] [--quiet]
+Static project cartographer for vvvv projects. It walks `.vl`, `.cs`, `.csproj`,
+and `.sdsl` files, parses `.vl` XML, and emits a structured index plus a summary.
+
+```powershell
+cd tools\vl-map
+dotnet run -c Release -- --project "C:\path\to\project" --out vl-map.json
 ```
 
-Per document it extracts: id, language/format version, definitions (with kind),
-nuget/document/platform dependencies, referenced libraries, and element counts
-(nodes/pads/links/canvases/pins). Project-wide it builds the document-dependency
-graph and flags issues:
+The index includes:
 
-- **package version drift** — a package pinned to multiple versions across documents,
-- **missing document dependencies** — relative `DocumentDependency` paths that don't resolve,
-- **duplicate element IDs** — violations of the `.vl` uniqueness rule,
-- **parse failures**.
+- document IDs, language versions, and format versions
+- definitions and dependencies
+- node/pad/link/canvas/pin counts
+- document dependency graph
+- package version drift
+- missing document dependencies
+- duplicate element IDs
+- parse failures
 
-Verified against `testbed/dodecahedron-vl` (22 documents, 98 definitions, 1968
-nodes): correctly surfaced 8 packages with version drift and 2 archived
-documents with dangling `BunrakuFrame.vl` references. Indexing logic is reusable
-via `VlMap.Indexer.Build`.
+The indexing logic is available as `VlMap.Indexer.Build`.
 
-## `vl-mcp` — MCP server for Claude Code
+## `vl-mcp`
 
-Exposes the above to MCP clients (Claude Code) over stdio JSON-RPC: `vvvv_index_project`
-(reuses the `vl-map` indexer) and `vvvv_editor_state` (reads the live snapshot written by
-the `bridge/VL.Agent` `EditorWatcher` node). See `vl-mcp/README.md` for setup. End-to-end
-tested by driving the protocol directly (initialize / tools/list / tools/call).
+MCP stdio server for agent clients.
+
+Tools exposed:
+
+- `vvvv_index_project` - static project index via `vl-map`
+- `vvvv_editor_state` - live editor snapshot written by `EditorWatcher`
+- `vvvv_set_pin_value` - narrow undo-integrated pin edit through `CommandProcessor`
+
+Build and point your MCP client at the executable:
+
+```powershell
+dotnet build tools\vl-mcp\vl-mcp.csproj -c Release
+```
+
+```text
+tools\vl-mcp\bin\Release\net10.0\vl-mcp.exe
+```
+
+Do not use `dotnet run` as an MCP command, because build output on stdout corrupts
+the JSON-RPC stream.
+
+Node insertion/paste is not exposed. The current paste experiment can mutate the
+editor graph while the patch editor is rendering and destabilize the editor view.

@@ -1,30 +1,109 @@
 # agentic-vl
 
-Exploration repo for agentic development workflows in the vvvv gamma ecosystem.
+Prototype tooling for agentic development workflows in the
+[vvvv gamma](https://vvvv.org/) ecosystem.
 
-This project investigates what a `vvvv-agent` could look like: a text-first, expert-facing assistant for understanding, debugging, testing, and eventually safely modifying complex vvvv projects.
+The project explores what a text-first `vvvv-agent` could look like: an assistant
+that can index vvvv projects, inspect live editor state, explain errors, and apply
+small undo-integrated edits through vvvv's public APIs.
 
-## Current artifacts
+This is research/prototype code. The read-only tooling is the stable part; live
+mutation is intentionally narrow and experimental.
 
-- `research/windows-api-validation-findings.md` — **API surface validated against installed vvvv gamma 7.2 (2026-06-19)**; confirms the editor-bridge, telemetry, and patch-mutation tiers against real types.
-- `research/vvvv-ecosystem-deep-dive.html` — detailed HTML analysis of the vvvv ecosystem and its components.
-- `research/vvvv-agent-architecture-notes.md` — working notes on feasible vvvv-agent architecture.
-- `deck/vvvv-agent-pitchdeck.html` — earlier pitchdeck-style architecture proposal.
-- `tools/vl-probe/` — metadata-only API dumper (.NET 10, `MetadataLoadContext`) that produced the findings above. Reproducible, runs no vvvv code.
-- `testbed/dodecahedron-vl/` — a real vvvv project used as a validation corpus (cloned, origin detached, gitignored — not tracked by this repo).
-- `SESSION_CONTEXT.md` — concise continuation context for picking this up on another machine.
-- `vvvv-sdk/` — Git submodule pointing to the public vvvv SDK clone used for historical/source-code context (not initialized locally; historical vvvv45 only).
+## What Is Here
 
-## Important caveat
+- `tools/vl-probe/` - metadata-only public API dumper for an installed vvvv gamma.
+- `tools/vl-map/` - static project indexer for `.vl`, `.cs`, `.csproj`, and `.sdsl`.
+- `tools/vl-mcp/` - MCP stdio server exposing project indexing and live editor state.
+- `bridge/VL.Agent/` - in-vvvv C# node library that writes live editor snapshots and
+  applies a limited request-file command loop.
+- `research/` - API validation notes, architecture notes, and paste-format findings.
+- `deck/` - early pitch/deck artifact.
+- `vvvv-sdk/` - historical public vvvv SDK submodule for context only.
 
-The cloned `vvvv-sdk` repository appears primarily to contain historical vvvv45/public SDK sources, not the current vvvv gamma internals. It is still useful as architectural context, especially around host/runtime/factory/command patterns, but current gamma details should be validated on Windows in vvvv itself.
+## Verified Status
 
-## Next recommended work on Windows
+Validated on Windows against vvvv gamma 7.2 on 2026-06-19.
 
-Done (2026-06-19): items (2) Session API surface and the static half of (3) are answered — see `research/windows-api-validation-findings.md`. Remaining:
+- `vl-probe` builds and reflects vvvv assemblies without executing vvvv code.
+- `vl-map` builds and indexes real `.vl` projects, including dependencies, definitions,
+  document graph, version drift, duplicate IDs, and dangling document dependencies.
+- `EditorWatcher` runs inside vvvv and writes `<project>/.agent/editor-state.json`
+  with loaded documents, selection, and compiler messages.
+- `vl-mcp` serves `vvvv_index_project`, `vvvv_editor_state`, and
+  `vvvv_set_pin_value` over stdio JSON-RPC.
+- `CommandProcessor` can process `setPinValue` requests through
+  `SessionNodes.CurrentSolution.SetPinValue(...).Confirm(...)`.
 
-1. **In-vvvv reachability spike**: minimal `.HDE.vl`/C# node that obtains `VL.HDE.API` + `IDevSession.Current` at runtime, logs hovered/selection/messages, and writes a message onto the hovered element. (Proves the bridge actually wires up.)
-2. Capture the `IDevSession.Paste` `modelSnippet` format empirically (copy a node, inspect clipboard) for safe agent-driven insertion.
-3. `vl-map`: static indexer for `.vl`/`.cs`/`.sdsl`/`.csproj`, validated against `testbed/dodecahedron-vl`.
-4. `vl-lint`: file-format + C# node-convention checks.
-5. VL.TestFramework smoke-test harness (locate its pack on this install first).
+### Safety Note
+
+Programmatic node insertion via `SessionNodes.Paste(...)` from the running
+`CommandProcessor` node was tested and is **not safe** in this prototype. It can
+race the patch editor render pass and trigger:
+
+```text
+InvalidOperationException: Collection was modified; enumeration operation may not execute.
+```
+
+For that reason, paste is not exposed as an MCP tool, and stale `"paste"` request
+files are rejected by `CommandProcessor`. Future work should move patch insertion
+into a real editor-command context or use another editor-mediated API boundary.
+
+## Quick Start
+
+Build everything:
+
+```powershell
+dotnet build tools\vl-probe\vl-probe.csproj -c Release
+dotnet build tools\vl-map\vl-map.csproj -c Release
+dotnet build tools\vl-mcp\vl-mcp.csproj -c Release
+dotnet build bridge\VL.Agent\VL.Agent.csproj
+```
+
+Index a project:
+
+```powershell
+dotnet run --project tools\vl-map\vl-map.csproj -c Release -- --project "C:\path\to\vvvv-project"
+```
+
+Use the MCP server by pointing your MCP client at the built executable:
+
+```text
+tools\vl-mcp\bin\Release\net10.0\vl-mcp.exe
+```
+
+Do not point MCP clients at `dotnet run`; build output on stdout corrupts the MCP
+stdio stream.
+
+## Live Editor Loop
+
+1. Reference `bridge/VL.Agent/VL.Agent.csproj` from a vvvv project.
+2. Drop an `EditorWatcher` node into the patch and leave its `path` pin empty.
+3. Launch the MCP client from the same project directory.
+4. Call `vvvv_editor_state` to read loaded documents, selection, element IDs, and
+   compiler messages.
+5. For narrow write tests, add `CommandProcessor` and use `vvvv_set_pin_value` with
+   a `UniqueId` from the editor snapshot.
+
+The default shared location is:
+
+```text
+<project>/.agent/editor-state.json
+<project>/.agent/requests/
+<project>/.agent/results/
+```
+
+## Repository Notes
+
+- Tooling under `tools/` targets `net10.0` and runs outside vvvv.
+- Code loaded into vvvv targets `net8.0-windows`.
+- `testbed/`, `.agent/`, `bin/`, `obj/`, and local scratch files are ignored.
+- `test.vl` is local scratch and intentionally ignored.
+
+## Next Work
+
+- Harden and live-test `vvvv_set_pin_value` across more pin/value types.
+- Add a safe editor-command based insertion path for nodes and links.
+- Add `vl-lint` checks for `.vl` file-format invariants and C# node conventions.
+- Surface live values/telemetry through `ILiveDataHub` where feasible.
+- Build a small reproducible automated smoke-test harness for the bridge.

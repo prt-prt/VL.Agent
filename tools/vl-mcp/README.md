@@ -1,34 +1,42 @@
-# vl-mcp — MCP server for the vvvv-agent
+# vl-mcp
 
-Exposes the vvvv-agent's intelligence to MCP clients such as **Claude Code**. It
-speaks the MCP **stdio** transport (newline-delimited JSON-RPC 2.0) directly — no SDK
-dependency — and reuses `vl-map`'s indexer.
+MCP stdio server for `agentic-vl`.
+
+It speaks newline-delimited JSON-RPC 2.0 directly and logs only to stderr so stdout
+stays a clean protocol stream. It reuses `vl-map` for static indexing and reads the
+live editor snapshot written by `bridge/VL.Agent`.
 
 ## Tools
 
-| Tool | What it does |
-|---|---|
-| `vvvv_index_project` | Statically index a vvvv project dir (`projectPath`) → definitions, dependencies, document graph, version drift, dangling refs, dup IDs. Returns the full index JSON. |
-| `vvvv_editor_state` | Read the live editor snapshot written by the in-vvvv `EditorWatcher` node (loaded docs, selection with element ids, compiler messages) and report its age. Optional `path` override. |
-| `vvvv_set_pin_value` | Set an input pin's value on an element (`uniqueId`, `pin`, `value`, optional `type`), undo-integrated. Drops a request the in-vvvv `CommandProcessor` node applies, then returns its result. |
+| Tool | Status | What it does |
+|---|---|---|
+| `vvvv_index_project` | read-only | Indexes a vvvv project directory and returns definitions, dependencies, document graph, version drift, missing document deps, duplicate IDs, and parse failures. |
+| `vvvv_editor_state` | read-only | Reads `.agent/editor-state.json`, which is written by the in-vvvv `EditorWatcher` node. |
+| `vvvv_set_pin_value` | write | Drops a request for the in-vvvv `CommandProcessor` node to set one input pin value through vvvv's undo-integrated solution API. |
 
-`vvvv_index_project` / `vvvv_editor_state` are **read-only**; `vvvv_set_pin_value` **mutates**
-the patch (via the undo-safe `ISolution` API) and needs the `CommandProcessor` node running.
+`vvvv_set_pin_value` requires a running `CommandProcessor` node in the patch and a
+`UniqueId` from `vvvv_editor_state`.
+
+Node insertion/paste is intentionally not exposed. Calling `SessionNodes.Paste`
+from a patch `Update` was tested and can break the graphical patch editor render
+loop with `Collection was modified; enumeration operation may not execute`.
 
 ## Build
 
-```bash
-cd tools/vl-mcp
-dotnet build -c Release      # -> bin/Release/net10.0/vl-mcp.exe
+```powershell
+dotnet build tools\vl-mcp\vl-mcp.csproj -c Release
 ```
 
-Point the MCP client at the **built exe**, not `dotnet run` — `dotnet run` can emit
-build text on stdout, which corrupts the JSON-RPC stream.
+Point MCP clients at the built exe:
 
-## Wire it into Claude Code
+```text
+C:\Users\3e8\projects\agentic-vl\tools\vl-mcp\bin\Release\net10.0\vl-mcp.exe
+```
 
-Run `claude mcp add` or drop a `.mcp.json` in your vvvv project (see
-`mcp.example.json` here) — just point it at the built exe:
+Do not point MCP clients at `dotnet run`; build output on stdout will corrupt the
+JSON-RPC stream.
+
+## Example MCP Config
 
 ```json
 {
@@ -40,27 +48,38 @@ Run `claude mcp add` or drop a `.mcp.json` in your vvvv project (see
 }
 ```
 
-**No paths to configure.** Launch Claude Code in your vvvv project directory; the
-server defaults to indexing that directory and reading `.agent/editor-state.json`
-inside it — the same convention the `EditorWatcher` node writes to. (`$VVVV_AGENT_STATE`
-or per-call `path`/`projectPath` args still override if you need them.)
+Launch the MCP client from the vvvv project directory. By default the server reads:
 
-Then in Claude Code: `vvvv_index_project` (defaults to your project) and
-`vvvv_editor_state` to see what you currently have selected/open in vvvv.
+```text
+<project>/.agent/editor-state.json
+```
 
-## The live-state loop (zero config)
+and writes requests/results under:
 
-1. In vvvv, drop a **`EditorWatcher`** node (category `Agent`, from `bridge/VL.Agent`)
-   into your project's patch and leave its `path` empty.
-2. It auto-writes to `<project>/.agent/editor-state.json` whenever selection /
-   messages / open documents change.
-3. Claude Code, launched in that same project, calls `vvvv_editor_state` and sees your
-   live editor context — including each selected element's `UniqueId`.
-4. To **edit**, also drop a **`CommandProcessor`** node (same package, leave `path` empty).
-   Then `vvvv_set_pin_value` (with a `UniqueId` from the snapshot) changes a pin and the
-   change is undoable in vvvv.
+```text
+<project>/.agent/requests/
+<project>/.agent/results/
+```
 
-## Protocol notes
+`VVVV_AGENT_STATE` or per-call `path`/`projectPath` arguments can override the
+defaults where supported.
 
-Implements `initialize`, `tools/list`, `tools/call`, `ping`. Echoes the client's
-`protocolVersion`. All logging goes to stderr; stdout carries only protocol messages.
+## Live-State Loop
+
+1. In vvvv, reference `bridge/VL.Agent/VL.Agent.csproj`.
+2. Drop an `EditorWatcher` node into the project patch and leave `path` empty.
+3. Call `vvvv_editor_state` from the MCP client to see loaded documents, selection,
+   compiler messages, and per-element `UniqueId` values.
+4. To test a write, also drop a `CommandProcessor` node with `path` empty and call
+   `vvvv_set_pin_value`.
+
+## Protocol
+
+Implemented methods:
+
+- `initialize`
+- `tools/list`
+- `tools/call`
+- `ping`
+
+Notifications are ignored. All diagnostics go to stderr.

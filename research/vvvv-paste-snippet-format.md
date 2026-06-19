@@ -1,8 +1,24 @@
 # vvvv paste-snippet (clipboard) format
 
 Captured 2026-06-19 by copying a single **Box** node (Stride.Models) in gamma 7.2 and
-reading the clipboard. This is the string `IDevSession.Paste(modelSnippet, location)` /
-`SessionNodes.Paste(...)` expects — the basis for the agent adding nodes to a live patch.
+reading the clipboard. This documents the string shape accepted by `IDevSession.Paste(modelSnippet, location)` /`SessionNodes.Paste(...)`; see the safety note below before using it for live insertion.
+
+## Current safety status
+
+The snippet format below is valid research data, but the prototype live paste path
+is **disabled**.
+
+Calling `SessionNodes.Paste(...)` from the in-patch `CommandProcessor.Update()` can
+mutate the editor graph while the Skia patch editor is rendering, which was observed
+to break the patch view with:
+
+```text
+InvalidOperationException: Collection was modified; enumeration operation may not execute.
+```
+
+Future insertion work should use a real editor-command context or another API
+boundary that is safe relative to graph rendering. Do not expose this as a normal
+MCP tool until that is solved.
 
 ## Shape
 

@@ -118,17 +118,16 @@ public class CommandProcessor
         return Ok($"opened {p}");
     }
 
-    // Insert a serialized model snippet (vvvv clipboard format) into the active patch
-    // at <x,y>. Undo-integrated, like a manual paste.
+    // SessionNodes.Paste mutates the editor graph. Calling it from a patch Update can
+    // race the graphical editor's render pass and leave the patch view broken with:
+    // "Collection was modified; enumeration operation may not execute."
+    // Keep the op disabled until paste is moved to an editor-command context.
     private static string Paste(JsonElement root)
     {
         var snippet = GetString(root, "snippet");
         if (string.IsNullOrWhiteSpace(snippet)) return Err("missing 'snippet'");
-        var x = GetFloat(root, "x");
-        var y = GetFloat(root, "y");
 
-        SessionNodes.Paste(snippet, new System.Drawing.PointF(x, y));
-        return Ok($"pasted snippet ({snippet!.Length} chars) at {x},{y}");
+        return Err("paste is disabled: SessionNodes.Paste from CommandProcessor.Update can corrupt the graph editor render state. Use manual clipboard paste or move this operation into a real editor-command context.");
     }
 
     private static float GetFloat(JsonElement root, string name)

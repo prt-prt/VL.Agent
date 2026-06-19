@@ -1,6 +1,13 @@
 # vvvv-agent — Windows API validation findings
 
 Date: 2026-06-19
+
+Runtime addendum: later in-vvvv testing confirmed that `IDevSession.Paste` /
+`SessionNodes.Paste` exists and accepts clipboard-style model snippets, but calling
+`SessionNodes.Paste(...)` from the prototype `CommandProcessor.Update()` can race
+the graphical patch editor render loop. The MCP server therefore does not expose
+paste/node insertion; future insertion work needs a safe editor-command context.
+
 Environment: Windows 11, vvvv gamma **7.2** (`C:\Program Files\vvvv\vvvv_gamma_7.2-win-x64`), .NET SDK 10.0.100.
 Method: metadata-only reflection (`MetadataLoadContext`) over the shipped assemblies — **no vvvv code executed**. Reproducible via `tools/vl-probe`.
 
@@ -49,7 +56,7 @@ Probe stats: 787 public types scanned across VL.Lang (420), VL.Core (358), VL.HD
 
 Two independent paths exist, no hand-rolled `.vl` XML generation required:
 
-1. **Editor-mediated, undo-safe:** `IDevSession.Paste(string modelSnippet, PointF location)` injects a serialized model snippet into the active patch at a location — the editor owns undo/redo. This is the conservative, reversible mutation path the notes wanted.
+1. **Editor-mediated paste API:** `IDevSession.Paste(string modelSnippet, PointF location)` injects a serialized model snippet into the active patch at a location. Metadata confirms the API exists, but later runtime testing showed this prototype must not call it from `CommandProcessor.Update()` because that can race the patch editor render loop.
 2. **Programmatic immutable model:** `VL.Model.Patch` already exposes the proposed operation IR as fluent builders:
    - `AddPad`, `AddSlot`, `AddProxy`, `AddPinAndProxy`, `GetOrAddLink(...)`, `GetOrAddFeedbackLink`, `GetOrAddReferenceLink`, `AddSubPatch`, `Add/RemoveParticipatingElement(s)`, `With*`.
    - `VL.Model.Node`: `AddPin`, `WithPins`, `WithPatches`, `WithBounds`, `WithPosition`, … plus a deep read model (`IsProcessDefinition`, `InnerCanvas`, `NodeReference`, `PatchTopology`, etc.).
