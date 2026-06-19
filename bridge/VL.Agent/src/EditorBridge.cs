@@ -1,5 +1,6 @@
 using System.Text.Json;
 using VL.HDE;
+using VL.Lang.PublicAPI;
 
 namespace VL.Agent;
 
@@ -29,7 +30,7 @@ public static class EditorBridge
                 .ToArray() ?? [];
 
             var selection = API.CurrentSelection?.Value?
-                .Select(o => o?.ToString() ?? "<null>")
+                .Select(DescribeSelected)
                 .ToArray() ?? [];
 
             var messages = API.LatestMessagesFromCompiler?.Value?
@@ -50,9 +51,32 @@ public static class EditorBridge
         }
     }
 
+    /// <summary>
+    /// Turn one selected object into structured data. Selection comes through as
+    /// <c>Spread&lt;object&gt;</c>; when an entry is an <see cref="ILiveElement"/> we
+    /// pull its id/name/symbol/messages, otherwise we fall back to its text. The
+    /// runtime <c>Type</c> is always recorded so the snapshot is self-documenting.
+    /// </summary>
+    private static SelSnapshot DescribeSelected(object? o)
+    {
+        if (o is null) return new SelSnapshot("null", null, null, null, null, null);
+        var type = o.GetType().Name;
+
+        if (o is ILiveElement live)
+        {
+            var info = live.Info;
+            var messages = live.Messages?.Select(m => m.ToString() ?? "").ToArray();
+            return new SelSnapshot(type, info?.ElementID, info?.ElementName,
+                info?.SymbolInfoString, info?.IsUnused, messages);
+        }
+
+        return new SelSnapshot(type, null, o.ToString(), null, null, null);
+    }
+
     private static readonly JsonSerializerOptions SnapshotJson = new() { WriteIndented = true };
 
-    private record EditorSnapshot(DocSnapshot[] Documents, string[] Selection, MsgSnapshot[] CompilerMessages);
+    private record EditorSnapshot(DocSnapshot[] Documents, SelSnapshot[] Selection, MsgSnapshot[] CompilerMessages);
     private record DocSnapshot(string? Path, string? Name, bool IsChanged, bool IsReadOnly);
+    private record SelSnapshot(string Type, uint? Id, string? Name, string? Symbol, bool? IsUnused, string[]? Messages);
     private record MsgSnapshot(string Severity, string? What, string? Why);
 }
