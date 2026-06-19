@@ -28,9 +28,11 @@ Both are static .NET 10 CLIs that run **no vvvv code**. See `tools/README.md`.
   element counts, document-dependency graph, and detection of package version
   drift / missing document deps / duplicate IDs. Indexing logic is in
   `VlMap.Indexer.Build` so `vl-mcp` reuses it. `dotnet run -c Release -- --project <dir>`
-- **`vl-mcp`** — MCP server (stdio JSON-RPC) exposing `vvvv_index_project` and
-  `vvvv_editor_state` to Claude Code. Point Claude Code at the built `vl-mcp.exe`
-  (not `dotnet run` — it would pollute stdout). See `tools/vl-mcp/README.md`.
+- **`vl-mcp`** — MCP server (stdio JSON-RPC) exposing `vvvv_index_project`,
+  `vvvv_editor_state` (read), and `vvvv_set_pin_value` (undo-safe write) to Claude Code.
+  Point Claude Code at the built `vl-mcp.exe` (not `dotnet run` — it would pollute
+  stdout). See `tools/vl-mcp/README.md`. Note: the exe is locked while a client runs it,
+  so disconnect the server before rebuilding.
 
 ## The live loop (vvvv → Claude Code)
 
@@ -43,6 +45,10 @@ with each selected element's `ElementId`/`MergeId` (the latter is what
 The `EditorWatcher` node derives `<project>` from its own document; the MCP server uses its
 working directory. So when you launch Claude Code in your vvvv project, both ends agree
 with no path settings. Override via the node's `path` pin or `$VVVV_AGENT_STATE`.
+
+**Write direction:** `vvvv_set_pin_value` drops a request in `<project>/.agent/requests/`;
+the in-vvvv `CommandProcessor` node applies it via `SetPinValue(...).Confirm(...)` (undo-safe)
+and writes `<project>/.agent/results/`. Address targets by the `UniqueId` from the snapshot.
 
 ## Testbed — `testbed/dodecahedron-vl/`
 

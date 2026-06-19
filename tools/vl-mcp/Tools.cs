@@ -17,6 +17,9 @@ internal static class Tools
         Environment.GetEnvironmentVariable("VVVV_AGENT_STATE")
         ?? Path.Combine(Directory.GetCurrentDirectory(), AgentDir, StateFileName);
 
+    private static string DefaultAgentDir =>
+        Path.Combine(Directory.GetCurrentDirectory(), AgentDir);
+
     public static JsonNode List() => new JsonObject
     {
         ["tools"] = new JsonArray
@@ -61,6 +64,42 @@ internal static class Tools
                     },
                 },
             },
+            new JsonObject
+            {
+                ["name"] = "vvvv_set_pin_value",
+                ["description"] =
+                    "Set an input pin's value on a node/element in the live vvvv editor, undo-integrated. "
+                  + "Use the `UniqueId` of a selected element from vvvv_editor_state. The vvvv-side "
+                  + "CommandProcessor node must be running in the patch. Returns the apply result.",
+                ["inputSchema"] = new JsonObject
+                {
+                    ["type"] = "object",
+                    ["properties"] = new JsonObject
+                    {
+                        ["uniqueId"] = new JsonObject
+                        {
+                            ["type"] = "string",
+                            ["description"] = "Element UniqueId from vvvv_editor_state (the `UniqueId` field).",
+                        },
+                        ["pin"] = new JsonObject
+                        {
+                            ["type"] = "string",
+                            ["description"] = "Name of the input pin to set (e.g. \"Input\", \"Increment\").",
+                        },
+                        ["value"] = new JsonObject
+                        {
+                            ["description"] = "New value (number / string / boolean).",
+                        },
+                        ["type"] = new JsonObject
+                        {
+                            ["type"] = "string",
+                            ["description"] = "Optional CLR type hint: Int32 / Float32 / Float64 / Boolean / String. "
+                                            + "If omitted, inferred from the JSON value.",
+                        },
+                    },
+                    ["required"] = new JsonArray { "uniqueId", "pin", "value" },
+                },
+            },
         },
     };
 
@@ -73,6 +112,7 @@ internal static class Tools
         {
             "vvvv_index_project" => IndexProject(args),
             "vvvv_editor_state" => EditorState(args),
+            "vvvv_set_pin_value" => SetPinValue(args),
             _ => throw new RpcException(-32602, $"unknown tool: {name}"),
         };
 
@@ -107,5 +147,56 @@ internal static class Tools
         var content = File.ReadAllText(path);
 
         return $"// snapshot path: {path}\n// last updated: {ageSeconds}s ago\n{content}";
+    }
+
+    // Drop a request file the in-vvvv CommandProcessor picks up, then poll for its result.
+    private static string SetPinValue(JsonNode? args)
+    {
+        var uniqueId = (string?)args?["uniqueId"];
+        var pin = (string?)args?["pin"];
+        if (string.IsNullOrWhiteSpace(uniqueId)) throw new RpcException(-32602, "uniqueId is required");
+        if (string.IsNullOrWhiteSpace(pin)) throw new RpcException(-32602, "pin is required");
+        if (args?["value"] is not JsonNode value) throw new RpcException(-32602, "value is required");
+
+        var agentDir = (string?)args?["agentDir"];
+        if (string.IsNullOrWhiteSpace(agentDir)) agentDir = DefaultAgentDir;
+
+        var requestsDir = Path.Combine(agentDir, "requests");
+        var resultsDir = Path.Combine(agentDir, "results");
+        Directory.CreateDirectory(requestsDir);
+
+        var id = Guid.NewGuid().ToString("N");
+        var request = new JsonObject
+        {
+            ["op"] = "setPinValue",
+            ["uniqueId"] = uniqueId,
+            ["pin"] = pin,
+            ["value"] = value.DeepClone(),
+        };
+        if ((string?)args?["type"] is { } typeHint) request["type"] = typeHint;
+
+        // Write atomically (temp + rename) so the watcher never sees a partial file.
+        var requestPath = Path.Combine(requestsDir, id + ".json");
+        var tmp = requestPath + ".tmp";
+        File.WriteAllText(tmp, request.ToJsonString());
+        File.Move(tmp, requestPath, overwrite: true);
+
+        // Poll for the matching result (~5s). The CommandProcessor applies on the vvvv main loop.
+        var resultPath = Path.Combine(resultsDir, id + ".json");
+        for (var i = 0; i < 50; i++)
+        {
+            if (File.Exists(resultPath))
+            {
+                string result;
+                try { result = File.ReadAllText(resultPath); }
+                catch { Thread.Sleep(50); continue; }
+                try { File.Delete(resultPath); } catch { }
+                return result;
+            }
+            Thread.Sleep(100);
+        }
+
+        return "{\"ok\":false,\"error\":\"timed out waiting for vvvv to apply the request. "
+             + "Is the CommandProcessor node running in the patch, and pointed at this .agent dir?\"}";
     }
 }

@@ -71,7 +71,7 @@ public static class EditorBridge
             // The stable id lives on the underlying model Element, not on IElementInfo
             // (whose numeric ElementID is null for editor selections). UniqueId.ElementId
             // is the base62 id; MergeId is the uint that ISolution.SetPinValue accepts.
-            string? elementId = null, documentId = null, kind = null;
+            string? elementId = null, documentId = null, kind = null, uniqueId = null;
             uint? mergeId = null;
             var element = live.Element;
             if (element is not null)
@@ -79,12 +79,13 @@ public static class EditorBridge
                 var uid = element.UniqueId;
                 elementId = uid.ElementId;
                 documentId = uid.DocumentId;
+                uniqueId = uid.ToString();   // round-trips via UniqueId.TryParse on the write side
                 mergeId = element.MergeId;
                 kind = element.Kind.ToString();
             }
 
             var messages = live.Messages?.Select(m => m.ToString() ?? "").ToArray();
-            return new SelSnapshot(type, elementId, mergeId, documentId,
+            return new SelSnapshot(type, elementId, mergeId, documentId, uniqueId,
                 info?.ElementName, info?.SymbolInfoString, kind, info?.IsUnused, messages);
         }
 
@@ -105,6 +106,7 @@ public static class EditorBridge
         string? ElementId = null,   // base62 id, stable within the document
         uint? MergeId = null,       // runtime numeric id (ISolution.SetPinValue overload)
         string? DocumentId = null,
+        string? UniqueId = null,    // parseable token for writes (UniqueId.TryParse)
         string? Name = null,
         string? Symbol = null,
         string? Kind = null,

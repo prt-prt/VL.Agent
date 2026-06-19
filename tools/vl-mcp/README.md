@@ -10,9 +10,10 @@ dependency — and reuses `vl-map`'s indexer.
 |---|---|
 | `vvvv_index_project` | Statically index a vvvv project dir (`projectPath`) → definitions, dependencies, document graph, version drift, dangling refs, dup IDs. Returns the full index JSON. |
 | `vvvv_editor_state` | Read the live editor snapshot written by the in-vvvv `EditorWatcher` node (loaded docs, selection with element ids, compiler messages) and report its age. Optional `path` override. |
+| `vvvv_set_pin_value` | Set an input pin's value on an element (`uniqueId`, `pin`, `value`, optional `type`), undo-integrated. Drops a request the in-vvvv `CommandProcessor` node applies, then returns its result. |
 
-The two halves mirror the architecture: **pull** project structure on demand, **push**
-live editor state via the bridge.
+`vvvv_index_project` / `vvvv_editor_state` are **read-only**; `vvvv_set_pin_value` **mutates**
+the patch (via the undo-safe `ISolution` API) and needs the `CommandProcessor` node running.
 
 ## Build
 
@@ -54,8 +55,10 @@ Then in Claude Code: `vvvv_index_project` (defaults to your project) and
 2. It auto-writes to `<project>/.agent/editor-state.json` whenever selection /
    messages / open documents change.
 3. Claude Code, launched in that same project, calls `vvvv_editor_state` and sees your
-   live editor context — including each selected element's `ElementId`/`MergeId`
-   (the latter is what the upcoming write tools use to edit pins).
+   live editor context — including each selected element's `UniqueId`.
+4. To **edit**, also drop a **`CommandProcessor`** node (same package, leave `path` empty).
+   Then `vvvv_set_pin_value` (with a `UniqueId` from the snapshot) changes a pin and the
+   change is undoable in vvvv.
 
 ## Protocol notes
 

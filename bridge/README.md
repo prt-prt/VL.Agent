@@ -36,8 +36,20 @@ did not mark static members; this only surfaced when the compiler rejected
   `path` only to override.
 
 Selection entries are resolved through `ILiveElement` into structured data:
-`ElementId` (stable base62 id), `MergeId` (the `uint` `ISolution.SetPinValue` takes),
-`DocumentId`, `Name`, `Symbol`, `Kind`, `IsUnused`, and per-element `Messages`.
+`ElementId` (stable base62 id), `MergeId`, `DocumentId`, `UniqueId` (the parseable
+token used for writes), `Name`, `Symbol`, `Kind`, `IsUnused`, and per-element `Messages`.
+
+### Write path
+
+- **`CommandProcessor`** (`[ProcessNode]`, pins: `path`, `enabled` → `status`, `lastResult`)
+  — watches `<project>/.agent/requests/*.json`, applies each edit on the editor main loop,
+  and writes a matching result to `<project>/.agent/results/`. Runs on the main thread
+  (required for solution mutations). Leave `path` empty for the project default.
+  - v1 op `setPinValue`: `{ "op":"setPinValue", "uniqueId":"…", "pin":"…", "value":42, "type":"Int32" }`
+    → `SessionNodes.CurrentSolution.SetPinValue(uid, pin, value).Confirm(Default)` — **undo-integrated**.
+  - The external agent never edits the patch directly; it drops a request (via the MCP
+    `vvvv_set_pin_value` tool) and this node applies it. Use the `UniqueId` from a
+    selected element in the snapshot to address the target.
 
 ### Live-state loop into Claude Code
 

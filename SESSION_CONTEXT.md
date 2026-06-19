@@ -33,11 +33,20 @@ Build phase (Windows, 2026-06-19) — **first working version of the system**:
 6. `testbed/dodecahedron-vl` — real project as validation corpus (origin detached,
    gitignored). `CLAUDE.md` — agent guide for the repo.
 
+### Status update
+- Read path live-verified end-to-end through Claude Code (MCP `vvvv_editor_state`):
+  selection resolves to structured `ElementId`/`UniqueId`/`Kind`/`Symbol`.
+- Write path built: MCP `vvvv_set_pin_value` → `.agent/requests/` → `CommandProcessor`
+  node → `SessionNodes.CurrentSolution.SetPinValue(uid,pin,value).Confirm(Default)` →
+  `.agent/results/`. Both ends compile + the request/result round-trip is verified
+  headlessly. **In-vvvv mutation not yet live-tested** (needs CommandProcessor node in a
+  patch + a reconnect of the MCP server so the new tool loads).
+
 ### Immediate next steps
-- Enrich the snapshot: resolve each selection object via `ILiveElement` into structured
-  data (node id/name/kind/messages) instead of `ToString()`.
-- Build the write path: `IDevSession.Current.CurrentSolution.SetPinValue(...).Confirm(...)`
-  and `SessionNodes.AddMessage(...)` annotations (mutation — design carefully).
+- Live-test `vvvv_set_pin_value` against a real node pin in vvvv; iterate on value type
+  coercion (Int32/Float32/…) and whether IOBox/pad values need a different path.
+- Then: `SessionNodes.AddMessage(...)` annotations; surface live pin values via
+  `ILiveDataHub`/`DataStream`; duplicate-document-Id detection in vl-map.
 
 ## Current architectural thesis
 
