@@ -17,15 +17,24 @@ The desired tool is currently imagined as a text-first development assistant sim
 
 ## Work completed
 
-1. Cloned public `vvvv-sdk` into `vvvv-sdk/`.
-   - It appears primarily historical vvvv45/public SDK, not current gamma source.
-   - Useful files observed:
-     - `vvvv45/src/integration/VVVV.VLIntegration/src/RuntimeHost.cs`
-     - `vvvv45/src/integration/VVVV.VLIntegration/src/NodeFactory.cs`
-     - `common/src/core/Core/Commands/Command.cs`
-2. Created `research/vvvv-agent-architecture-notes.md`.
-3. Created `deck/vvvv-agent-pitchdeck.html`.
-4. Created `research/vvvv-ecosystem-deep-dive.html`.
+Research phase (macOS):
+1. Cloned public `vvvv-sdk` (historical vvvv45/public SDK, not current gamma source).
+2. `research/vvvv-agent-architecture-notes.md`, `deck/vvvv-agent-pitchdeck.html`,
+   `research/vvvv-ecosystem-deep-dive.html`.
+
+Build phase (Windows, 2026-06-19) — **first working version of the system**:
+3. `tools/vl-probe` — metadata-only API dumper; validated the gamma 7.2 surface
+   (→ `research/windows-api-validation-findings.md`). Verified.
+4. `tools/vl-map` — static project cartographer (definitions, deps, graph, version
+   drift, dangling refs, dup IDs). Verified against `testbed/dodecahedron-vl`.
+5. `bridge/VL.Agent` — in-vvvv node library; `WriteEditorSnapshot(path)` exports live
+   editor state to JSON. **Compiles** against gamma 7.2; runtime load in vvvv pending.
+6. `testbed/dodecahedron-vl` — real project as validation corpus (origin detached,
+   gitignored). `CLAUDE.md` — agent guide for the repo.
+
+### Immediate next step
+Load `bridge/VL.Agent` into vvvv and run `WriteEditorSnapshot` (GUI step, do with the
+user) — proves the runtime bridge end-to-end. Recipe in `bridge/README.md`.
 
 ## Current architectural thesis
 
