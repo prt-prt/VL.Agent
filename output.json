@@ -7,6 +7,29 @@
       "IsReadOnly": false
     }
   ],
-  "Selection": [],
+  "Selection": [
+    {
+      "Type": "VL.Lang.PublicAPI.LiveDataHub",
+      "ElementId": "CcfZi5lWrlrOpP4LlpiZ1F",
+      "MergeId": 0,
+      "DocumentId": "SFU9A1UdmjFMZmRewwvBEp",
+      "Name": "IOBox",
+      "Symbol": "__pad_CcfZi5lWrlrOpP4LlpiZ1F: Integer32 @Update",
+      "Kind": "None",
+      "IsUnused": false,
+      "Messages": []
+    },
+    {
+      "Type": "VL.Lang.PublicAPI.LiveNodeApplication",
+      "ElementId": "UhSG2UbN7IqL942w84CAEP",
+      "MergeId": 0,
+      "DocumentId": "SFU9A1UdmjFMZmRewwvBEp",
+      "Name": "Node",
+      "Symbol": "Counter [Animation.FrameBased] @Create, Update",
+      "Kind": "ProcessNode",
+      "IsUnused": false,
+      "Messages": []
+    }
+  ],
   "CompilerMessages": []
 }

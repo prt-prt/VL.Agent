@@ -27,8 +27,20 @@ did not mark static members; this only surfaced when the compiler rejected
 
 - **`WriteEditorSnapshot(path) → status`** — writes a JSON snapshot of loaded
   documents (path/name/changed/readonly), the current selection, and the latest
-  compiler messages (severity/what/why) to `path`. Trigger it from a patch (e.g. on
-  a bang) and an external agent can read live editor state from the file.
+  compiler messages (severity/what/why) to `path`. One-shot; trigger from a patch.
+- **`EditorWatcher`** (`[ProcessNode]`, pins: `path`, `enabled` → `status`) — the same
+  snapshot, but rewritten automatically whenever editor state changes (selection /
+  messages / open documents). Drop it in a running patch / `.HDE.vl` and point `path`
+  at the file the MCP server reads (`$VVVV_AGENT_STATE`) for a live agent view.
+
+Selection entries are resolved through `ILiveElement` into structured data:
+`ElementId` (stable base62 id), `MergeId` (the `uint` `ISolution.SetPinValue` takes),
+`DocumentId`, `Name`, `Symbol`, `Kind`, `IsUnused`, and per-element `Messages`.
+
+### Live-state loop into Claude Code
+
+`EditorWatcher` (push) → JSON file → `tools/vl-mcp` `vvvv_editor_state` (pull) → Claude
+Code. See `tools/vl-mcp/README.md`.
 
 ### Build
 

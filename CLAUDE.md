@@ -26,8 +26,18 @@ Both are static .NET 10 CLIs that run **no vvvv code**. See `tools/README.md`.
 - **`vl-map`** — project cartographer. Indexes `.vl`/`.cs`/`.csproj`/`.sdsl`, parses
   every `.vl` (XML), emits `vl-map.json` + a summary: definitions, dependencies,
   element counts, document-dependency graph, and detection of package version
-  drift / missing document deps / duplicate IDs.
-  `dotnet run -c Release -- --project <dir>`
+  drift / missing document deps / duplicate IDs. Indexing logic is in
+  `VlMap.Indexer.Build` so `vl-mcp` reuses it. `dotnet run -c Release -- --project <dir>`
+- **`vl-mcp`** — MCP server (stdio JSON-RPC) exposing `vvvv_index_project` and
+  `vvvv_editor_state` to Claude Code. Point Claude Code at the built `vl-mcp.exe`
+  (not `dotnet run` — it would pollute stdout). See `tools/vl-mcp/README.md`.
+
+## The live loop (vvvv → Claude Code)
+
+`bridge/VL.Agent` `EditorWatcher` node writes editor state to a file on every change →
+`vl-mcp`'s `vvvv_editor_state` reads it → Claude Code sees what's open/selected/erroring,
+with each selected element's `ElementId`/`MergeId` (the latter is what
+`ISolution.SetPinValue` takes — the basis for the upcoming write path).
 
 ## Testbed — `testbed/dodecahedron-vl/`
 

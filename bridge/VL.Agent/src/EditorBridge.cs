@@ -1,4 +1,3 @@
-using System.Reflection;
 using System.Text.Json;
 using VL.HDE;
 using VL.Lang.PublicAPI;
@@ -60,46 +59,35 @@ public static class EditorBridge
     /// </summary>
     private static SelSnapshot DescribeSelected(object? o)
     {
-        if (o is null) return new SelSnapshot("null", null, null, null, null, null);
+        if (o is null) return new SelSnapshot("null");
         var type = o.GetType().FullName ?? o.GetType().Name;
 
         if (o is ILiveElement live)
         {
             var info = live.Info;
-            var messages = live.Messages?.Select(m => m.ToString() ?? "").ToArray();
-            return new SelSnapshot(type, info?.ElementID, info?.ElementName,
-                info?.SymbolInfoString, info?.IsUnused, messages);
-        }
 
-        // Unknown selection object: emit a self-diagnosing dump (interfaces + readable
-        // properties) so we can see exactly how to extract its id/name. Also make a
-        // best effort to surface an id from a property named like an id.
-        var interfaces = o.GetType().GetInterfaces().Select(i => i.Name).OrderBy(n => n).ToArray();
-        var props = ReadProperties(o);
-        var id = props.TryGetValue("ElementID", out var ev) ? ev
-               : props.TryGetValue("Id", out var iv) ? iv
-               : props.GetValueOrDefault("Identity");
-        var name = props.GetValueOrDefault("Name") ?? o.ToString();
-
-        return new SelSnapshot(type, null, name, null, null, null, interfaces, props, id);
-    }
-
-    /// <summary>Reflectively read public instance properties, guarded and truncated.</summary>
-    private static Dictionary<string, string?> ReadProperties(object o)
-    {
-        var result = new Dictionary<string, string?>(StringComparer.Ordinal);
-        foreach (var p in o.GetType().GetProperties(BindingFlags.Public | BindingFlags.Instance))
-        {
-            if (p.GetIndexParameters().Length > 0 || !p.CanRead) continue;
-            try
+            // The stable id lives on the underlying model Element, not on IElementInfo
+            // (whose numeric ElementID is null for editor selections). UniqueId.ElementId
+            // is the base62 id; MergeId is the uint that ISolution.SetPinValue accepts.
+            string? elementId = null, documentId = null, kind = null;
+            uint? mergeId = null;
+            var element = live.Element;
+            if (element is not null)
             {
-                var v = p.GetValue(o)?.ToString();
-                if (v is { Length: > 200 }) v = v[..200] + "…";
-                result[p.Name] = v;
+                var uid = element.UniqueId;
+                elementId = uid.ElementId;
+                documentId = uid.DocumentId;
+                mergeId = element.MergeId;
+                kind = element.Kind.ToString();
             }
-            catch (Exception ex) { result[p.Name] = "<err: " + ex.GetType().Name + ">"; }
+
+            var messages = live.Messages?.Select(m => m.ToString() ?? "").ToArray();
+            return new SelSnapshot(type, elementId, mergeId, documentId,
+                info?.ElementName, info?.SymbolInfoString, kind, info?.IsUnused, messages);
         }
-        return result;
+
+        // Fallback for any non-element selection object: record type + text.
+        return new SelSnapshot(type, Name: o.ToString());
     }
 
     private static readonly JsonSerializerOptions SnapshotJson = new()
@@ -111,7 +99,14 @@ public static class EditorBridge
     private record EditorSnapshot(DocSnapshot[] Documents, SelSnapshot[] Selection, MsgSnapshot[] CompilerMessages);
     private record DocSnapshot(string? Path, string? Name, bool IsChanged, bool IsReadOnly);
     private record SelSnapshot(
-        string Type, uint? Id, string? Name, string? Symbol, bool? IsUnused, string[]? Messages,
-        string[]? Interfaces = null, Dictionary<string, string?>? Properties = null, string? ProbedId = null);
+        string Type,
+        string? ElementId = null,   // base62 id, stable within the document
+        uint? MergeId = null,       // runtime numeric id (ISolution.SetPinValue overload)
+        string? DocumentId = null,
+        string? Name = null,
+        string? Symbol = null,
+        string? Kind = null,
+        bool? IsUnused = null,
+        string[]? Messages = null);
     private record MsgSnapshot(string Severity, string? What, string? Why);
 }

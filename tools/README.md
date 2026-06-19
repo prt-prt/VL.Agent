@@ -43,4 +43,12 @@ graph and flags issues:
 
 Verified against `testbed/dodecahedron-vl` (22 documents, 98 definitions, 1968
 nodes): correctly surfaced 8 packages with version drift and 2 archived
-documents with dangling `BunrakuFrame.vl` references.
+documents with dangling `BunrakuFrame.vl` references. Indexing logic is reusable
+via `VlMap.Indexer.Build`.
+
+## `vl-mcp` — MCP server for Claude Code
+
+Exposes the above to MCP clients (Claude Code) over stdio JSON-RPC: `vvvv_index_project`
+(reuses the `vl-map` indexer) and `vvvv_editor_state` (reads the live snapshot written by
+the `bridge/VL.Agent` `EditorWatcher` node). See `vl-mcp/README.md` for setup. End-to-end
+tested by driving the protocol directly (initialize / tools/list / tools/call).
