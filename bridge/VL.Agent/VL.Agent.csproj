@@ -1,0 +1,42 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    VL.Agent — the runtime bridge half of the vvvv-agent.
+    Provides nodes (category "Agent") that export live editor state to disk so an
+    external coding agent can read it, and (later) apply undo-safe edits.
+
+    References the assemblies of the *installed* gamma 7.2 directly (HintPath) so
+    the build matches the exact runtime that will load it. Target net8.0-windows
+    to match vvvv's runtime (see vvvv.runtimeconfig.json: tfm net8.0 + WindowsDesktop).
+  -->
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <VvvvInstall>C:\Program Files\vvvv\vvvv_gamma_7.2-win-x64</VvvvInstall>
+    <!-- WindowsBase 4.0.0.0 (net8 ref) vs 6.0.2.0 (vvvv): vvvv supplies its own at
+         runtime and we don't copy references (Private=false), so this is benign. -->
+    <NoWarn>$(NoWarn);MSB3277</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="VL.Core">
+      <HintPath>$(VvvvInstall)\VL.Core.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="VL.Lang">
+      <HintPath>$(VvvvInstall)\VL.Lang.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="VL.HDE">
+      <HintPath>$(VvvvInstall)\packs\dependencies\VL.HDE.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="System.Reactive">
+      <HintPath>$(VvvvInstall)\System.Reactive.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+</Project>
