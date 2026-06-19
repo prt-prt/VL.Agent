@@ -1,0 +1,3 @@
+[submodule "vvvv-sdk"]
+	path = vvvv-sdk
+	url = https://github.com/vvvv/vvvv-sdk

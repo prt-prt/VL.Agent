@@ -1,0 +1,464 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>vvvv gamma Ecosystem Deep Dive</title>
+<style>
+:root{
+  --bg:#0b0f17; --panel:#121a28; --panel2:#172133; --text:#eaf2ff; --muted:#a9b7cf;
+  --line:rgba(255,255,255,.13); --cyan:#4fdcff; --green:#9dff8a; --pink:#ff6be7; --yellow:#ffd166; --red:#ff7474;
+  --code:#07111d; --max:1180px;
+}
+*{box-sizing:border-box} html{scroll-behavior:smooth} body{margin:0;color:var(--text);font:16px/1.65 Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;background:
+radial-gradient(circle at 12% 0%,rgba(79,220,255,.16),transparent 28%),radial-gradient(circle at 88% 8%,rgba(255,107,231,.11),transparent 26%),var(--bg)}
+a{color:var(--cyan);text-decoration:none} a:hover{text-decoration:underline}
+header{padding:72px 28px 44px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,rgba(255,255,255,.04),transparent)}
+.wrap{max-width:var(--max);margin:0 auto}.kicker{color:var(--green);text-transform:uppercase;letter-spacing:.18em;font-weight:800;font-size:13px}h1{font-size:clamp(42px,7vw,88px);line-height:.96;margin:14px 0 20px;letter-spacing:-.055em}h2{font-size:clamp(30px,4vw,52px);line-height:1.05;margin:54px 0 18px;letter-spacing:-.035em}h3{font-size:25px;margin:30px 0 12px;color:#fff;letter-spacing:-.02em}h4{font-size:18px;margin:22px 0 8px;color:var(--cyan)}
+p{color:var(--muted);margin:0 0 16px}.lead{font-size:22px;color:#dce9ff;max-width:900px}.meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:24px}.pill{border:1px solid var(--line);border-radius:999px;padding:7px 12px;background:rgba(255,255,255,.05);color:#dce9ff;font-size:13px}
+main{display:grid;grid-template-columns:270px minmax(0,1fr);gap:34px;max-width:calc(var(--max) + 330px);margin:0 auto;padding:34px 28px 90px}.toc{position:sticky;top:18px;align-self:start;border:1px solid var(--line);border-radius:22px;background:rgba(18,26,40,.72);backdrop-filter:blur(15px);padding:18px;max-height:calc(100vh - 36px);overflow:auto}.toc b{display:block;margin-bottom:12px}.toc a{display:block;color:var(--muted);padding:7px 0;font-size:14px;border-bottom:1px solid rgba(255,255,255,.05)}
+article{min-width:0}.section{border-top:1px solid var(--line);padding-top:14px}.card{background:linear-gradient(180deg,rgba(255,255,255,.065),rgba(255,255,255,.03));border:1px solid var(--line);border-radius:24px;padding:22px;margin:18px 0;box-shadow:0 24px 70px rgba(0,0,0,.25)}.grid{display:grid;grid-template-columns:repeat(12,1fr);gap:16px}.span4{grid-column:span 4}.span6{grid-column:span 6}.span8{grid-column:span 8}.span12{grid-column:span 12}
+ul,ol{color:var(--muted);margin-top:8px}li{margin:7px 0}strong{color:#fff}.note{border-left:4px solid var(--cyan);padding:13px 16px;background:rgba(79,220,255,.08);border-radius:12px;color:#dce9ff}.warn{border-left-color:var(--yellow);background:rgba(255,209,102,.08)}.gap{border-left-color:var(--red);background:rgba(255,116,116,.08)}
+code,kbd{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.08);border-radius:6px;padding:2px 5px;color:#d9fbff}pre{background:var(--code);border:1px solid var(--line);border-radius:16px;padding:16px;overflow:auto;color:#d9fbff;font-size:13px;line-height:1.5}
+table{width:100%;border-collapse:collapse;margin:16px 0;color:var(--muted);font-size:15px}th,td{border-bottom:1px solid var(--line);padding:11px 10px;text-align:left;vertical-align:top}th{color:#fff;background:rgba(255,255,255,.04)}.diagram{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;white-space:pre;overflow:auto;background:#07111d;color:#d9fbff;border:1px solid var(--line);border-radius:18px;padding:18px;font-size:13px;line-height:1.45}.ok{color:var(--green)}.risk{color:var(--yellow)}.bad{color:var(--red)}
+@media(max-width:980px){main{display:block}.toc{position:relative;top:auto;margin-bottom:24px}.span4,.span6,.span8,.span12{grid-column:span 12}}
+@media print{body{background:white;color:#111}p,li,td,.toc a{color:#333}.toc{display:none}main{display:block;padding:0}header{padding:20px 0}.card,pre,.diagram{box-shadow:none;break-inside:avoid}}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+  <div class="kicker">research report</div>
+  <h1>vvvv gamma ecosystem deep dive</h1>
+  <p class="lead">A component-level analysis of how vvvv gamma appears to work as a live .NET visual programming ecosystem, with emphasis on files, runtime, editor integration, packages, C# nodes, channels, shaders, testing, and implications for future agentic tooling.</p>
+  <div class="meta"><span class="pill">Generated 2026-06-17</span><span class="pill">Artifact: research/vvvv-ecosystem-deep-dive.html</span><span class="pill">Current host: macOS, no local vvvv execution</span></div>
+</div></header>
+<main>
+<nav class="toc"><b>Contents</b>
+<a href="#summary">1. Executive summary</a>
+<a href="#map">2. Ecosystem map</a>
+<a href="#documents">3. Documents & file model</a>
+<a href="#editor">4. Editor / HDE</a>
+<a href="#runtime">5. Runtime & evaluation</a>
+<a href="#nodes">6. Nodes & type system</a>
+<a href="#dotnet">7. .NET integration</a>
+<a href="#packages">8. Packages & dependencies</a>
+<a href="#channels">9. Channels & reactive state</a>
+<a href="#rendering">10. Rendering, shaders, media</a>
+<a href="#testing">11. Testing & debugging</a>
+<a href="#startup">12. Startup, paths, CLI</a>
+<a href="#sdk">13. Public source observations</a>
+<a href="#gaps">14. Missing information</a>
+<a href="#agent">15. Agentic development implications</a>
+</nav>
+<article>
+
+<section id="summary" class="section">
+<h2>1. Executive summary</h2>
+<div class="card">
+<p>vvvv gamma is best understood as a <strong>live .NET development environment</strong> where visual patches, C# source code, shaders, packages, and runtime state coexist inside a continuously running application. It is not merely a node editor, and not merely a C# host. It is a compiler/runtime/editor/package ecosystem with strong emphasis on real-time feedback.</p>
+<p>The central workflow is: users author <code>.vl</code> XML documents visually; those documents reference packages, other documents, C# source projects, compiled assemblies, and shaders; vvvv resolves those dependencies, compiles visual programs and C# code, creates runtime node instances, and evaluates connected graphs every frame.</p>
+<p>For agentic development, the key insight is that vvvv has multiple partially overlapping representations of a project:</p>
+<ul>
+<li><strong>File representation:</strong> XML documents, C# files, shader files, project files, NuGet package specs.</li>
+<li><strong>Editor representation:</strong> selected/hovered nodes, patch canvas, node browser, inspector, command system.</li>
+<li><strong>Compiler representation:</strong> resolved symbols, type definitions, generated C#, target compilation, diagnostics.</li>
+<li><strong>Runtime representation:</strong> process node instances, frame clock, channels, resources, GPU state, exceptions, logs.</li>
+</ul>
+<p>A capable vvvv-agent must eventually bridge these layers instead of treating <code>.vl</code> as plain XML or C# as plain code.</p>
+</div>
+</section>
+
+<section id="map" class="section">
+<h2>2. Ecosystem map</h2>
+<div class="diagram">┌─────────────────────────────────────────────────────────────────────┐
+│                             vvvv gamma                              │
+├─────────────────────────────────────────────────────────────────────┤
+│ Editor / HDE                                                        │
+│  - visual patch canvas, node browser, inspector                     │
+│  - .HDE.vl extensions, commands, custom windows                     │
+│  - VL.Lang Session API for editor context                           │
+├─────────────────────────────────────────────────────────────────────┤
+│ Documents & language                                                │
+│  - .vl XML documents: patches, definitions, regions, links, pads    │
+│  - dependencies: NuGet, document, platform                          │
+│  - process/operation/class/record/interface definitions             │
+├─────────────────────────────────────────────────────────────────────┤
+│ Compiler / symbol system                                            │
+│  - visual graph to executable .NET representation                    │
+│  - Roslyn compilation of source-referenced C# projects              │
+│  - node browser generated from VL definitions + imported .NET API   │
+├─────────────────────────────────────────────────────────────────────┤
+│ Runtime                                                             │
+│  - frame-based graph evaluation                                     │
+│  - process node lifecycle: Create/Update/Dispose                    │
+│  - hot reload, instance state handling, resources                   │
+│  - channels, services, frame clock, Stride game                     │
+├─────────────────────────────────────────────────────────────────────┤
+│ Package ecosystem                                                   │
+│  - VL.CoreLib, VL.Core, VL.Stride, VL.Skia, VL.Fuse, IO packs, etc. │
+│  - NuGet distribution + editable local packages                     │
+│  - help patches, tests, shaders, DLLs                               │
+└─────────────────────────────────────────────────────────────────────┘</div>
+
+<div class="grid">
+<div class="card span6"><h3>What is unusually powerful</h3><ul><li>Live visual editing while the program runs.</li><li>Source C# projects can be compiled by vvvv via Roslyn and hot-reloaded.</li><li>Shaders live-reload.</li><li>Any .NET library can be wrapped or imported as nodes.</li><li>Packages combine visual patches, code, shaders, docs, and tests.</li></ul></div>
+<div class="card span6"><h3>What is unusually complex</h3><ul><li>The same concept can exist as XML, symbol, generated code, node browser entry, and runtime instance.</li><li>Visual graph behaviour depends on frame timing, stateful nodes, spreading, nil handling, and resource lifecycles.</li><li>Patch mutation through raw XML is possible but semantically fragile without editor/compiler feedback.</li></ul></div>
+</div>
+</section>
+
+<section id="documents" class="section">
+<h2>3. Documents and file model</h2>
+<p>The <code>.vl</code> document is the core project artifact. It is XML-based and version-controlable. It stores visual definitions, dependencies, patches, nodes, pins, pads, links, canvas layout, regions, type annotations, and process lifecycle fragments.</p>
+
+<h3>3.1 Root structure</h3>
+<pre>&lt;Document xmlns:p="property" xmlns:r="reflection"
+          Id="..." LanguageVersion="2024.6.0" Version="0.128"&gt;
+  &lt;NugetDependency Location="VL.CoreLib" Version="..." /&gt;
+  &lt;DocumentDependency Location="./Other.vl" /&gt;
+  &lt;PlatformDependency Location="VL.Core.dll" /&gt;
+  &lt;Patch&gt;...&lt;/Patch&gt;
+&lt;/Document&gt;</pre>
+<p>Dependencies are direct children of <code>Document</code>, not nested inside patches. Almost every document needs <code>VL.CoreLib</code>. IDs are unique 22-character base62 GUID encodings.</p>
+
+<h3>3.2 Important element types</h3>
+<table><tr><th>Element</th><th>Role</th><th>Agent-relevant notes</th></tr>
+<tr><td><code>Document</code></td><td>Whole file and dependency container.</td><td>Language version, namespace declarations, dependency list.</td></tr>
+<tr><td><code>Patch</code></td><td>Logical container for graph fragments and definitions.</td><td>Can represent top-level, Create/Update fragments, region bodies.</td></tr>
+<tr><td><code>Canvas</code></td><td>Visual grouping/layout.</td><td>Mostly presentation, but important for human readability.</td></tr>
+<tr><td><code>Node</code></td><td>Operation call, process definition, region, or other symbol reference.</td><td>Meaning is primarily in <code>p:NodeReference</code>.</td></tr>
+<tr><td><code>Pin</code></td><td>Input/output endpoint.</td><td>Links reference pin IDs; pin kind matters.</td></tr>
+<tr><td><code>Pad</code></td><td>IOBox/value/property visual node.</td><td>Often used for constants, comments, patch inputs/outputs.</td></tr>
+<tr><td><code>Link</code></td><td>Connection between output and input.</td><td><code>Ids="sourcePinId,sinkPinId"</code>, direction matters.</td></tr>
+<tr><td><code>ProcessDefinition</code></td><td>Lifecycle definition.</td><td>References sibling Create/Update patches through fragments.</td></tr>
+<tr><td><code>Slot</code></td><td>State field in a type definition.</td><td>Represents persistent state inside visual types.</td></tr></table>
+
+<h3>3.3 NodeReference and Choices</h3>
+<p>A node's visible <code>Name</code> is not enough to know what it does. Its semantic identity is encoded in <code>p:NodeReference</code> choices. Examples include operation calls, process applications, type definitions, and stateful regions.</p>
+<pre>&lt;p:NodeReference LastCategoryFullName="Primitive.Math" LastDependency="CoreLibBasics.vl"&gt;
+  &lt;Choice Kind="NodeFlag" Name="Node" Fixed="true" /&gt;
+  &lt;Choice Kind="OperationCallFlag" Name="+" /&gt;
+&lt;/p:NodeReference&gt;</pre>
+<p>This means a static XML analyzer can extract useful information, but full correctness requires resolving choices against the loaded package/document symbol universe.</p>
+
+<h3>3.4 Regions</h3>
+<p>Regions are visual control-flow constructs such as <strong>If</strong>, <strong>ForEach</strong>, <strong>Cache</strong>, <strong>Repeat</strong>, and <strong>Accumulator</strong>. In XML, they are nodes with stateful-region choices and nested patches/fragments. They are not just visual boxes: they alter evaluation and scope.</p>
+
+<div class="note warn"><strong>Analysis consequence:</strong> arbitrary XML editing is risky. A valid-looking node/link/pin edit can still be semantically invalid if the node reference does not resolve, if fragment references are wrong, or if type inference fails.</div>
+</section>
+
+<section id="editor" class="section">
+<h2>4. Editor / HDE layer</h2>
+<p>The editor, often referred to as HDE in vvvv terminology, is where patchers work visually. It provides the canvas, node browser, inspector, menus, windows, commands, and selection state.</p>
+
+<h3>4.1 Editor extensions</h3>
+<p>Editor extensions are ordinary VL patches with a <code>.HDE.vl</code> suffix. They run automatically when open in the editor and can add commands and windows.</p>
+<table><tr><th>Mechanism</th><th>Purpose</th></tr>
+<tr><td><code>VL.HDE</code></td><td>Provides command nodes, editor window types, docking helpers.</td></tr>
+<tr><td><code>VL.Lang</code></td><td>Provides Session API nodes for editor/compiler/project interaction.</td></tr>
+<tr><td><code>Command</code> node</td><td>Registers a menu command, optionally with shortcut.</td></tr>
+<tr><td><code>SkiaWindow</code> / <code>SkiaWindowTopMost</code></td><td>Custom extension UI surfaces.</td></tr>
+<tr><td><code>WindowFactory</code></td><td>Docking integration for extension windows.</td></tr></table>
+
+<h3>4.2 Why this matters</h3>
+<p>The editor has context that files do not: current selection, hovered node, visible patch, UI state, inspector values, maybe resolved symbol identities. For an agent, an HDE bridge is likely the most feasible way to become editor-aware without reverse-engineering the entire compiler model.</p>
+
+<div class="note gap"><strong>Missing detail:</strong> this report does not include a full inventory of <code>VL.Lang</code> Session nodes or their exact data types. That needs a Windows/vvvv session or direct current gamma API documentation/source. The available information says selected/hovered nodes and pin read/write APIs exist, but not their complete shape.</div>
+</section>
+
+<section id="runtime" class="section">
+<h2>5. Runtime and evaluation model</h2>
+<p>vvvv gamma evaluates connected dataflow graphs frame by frame, typically around display refresh rates. The runtime has to maintain process node state, manage resources, update compilation results, and preserve live-programming continuity.</p>
+
+<h3>5.1 Frame-based execution</h3>
+<ul>
+<li>Data generally flows left-to-right, top-to-bottom.</li>
+<li>Connected graph parts evaluate every frame.</li>
+<li>Disconnected subgraphs are skipped.</li>
+<li>Stateful process nodes keep state across frames.</li>
+<li>Frame delay nodes break feedback cycles by introducing one-frame latency.</li>
+</ul>
+
+<h3>5.2 Process lifecycle</h3>
+<table><tr><th>Concept</th><th>Visual patch</th><th>C# node</th></tr>
+<tr><td>Create</td><td>Create fragment/region runs once for instance setup.</td><td>Constructor runs once per node instance.</td></tr>
+<tr><td>Update</td><td>Update fragment runs each frame.</td><td><code>Update(...)</code> is called each frame.</td></tr>
+<tr><td>Dispose</td><td>Implicit/explicit cleanup depending on resources.</td><td><code>IDisposable.Dispose()</code> called on removal/reload/document close.</td></tr></table>
+
+<h3>5.3 Hot reload</h3>
+<p>Patch changes apply live and generally preserve node state. C# source project changes trigger recompilation and lifecycle restart of affected nodes: old instance is disposed, a new constructor runs, and <code>Update</code> resumes on the next frame. Static fields reset because the in-memory assembly is replaced.</p>
+
+<h3>5.4 Runtime resources</h3>
+<p>Real vvvv projects frequently manage resources that outlive a single frame: GPU buffers/textures, Stride game systems, native handles, network sockets, device connections, subscriptions, and C# services. Resource management is therefore a first-class concern. Missing disposal causes leaks across both runtime operation and live reload cycles.</p>
+
+<div class="note"><strong>Agent angle:</strong> runtime behaviour cannot be inferred from static graph structure alone. A useful debugging assistant needs logs, exceptions, frame events, channel/probe values, and knowledge of lifecycle semantics.</div>
+</section>
+
+<section id="nodes" class="section">
+<h2>6. Nodes, type system, and graph semantics</h2>
+
+<h3>6.1 Node categories</h3>
+<table><tr><th>Kind</th><th>Description</th><th>State?</th></tr>
+<tr><td>Operation node</td><td>Pure or mostly stateless function call; same input should produce same output.</td><td>No persistent instance state.</td></tr>
+<tr><td>Process node</td><td>Stateful node with lifecycle and per-frame update.</td><td>Yes.</td></tr>
+<tr><td>Adaptive node</td><td>Resolves implementation from connected types, e.g. arithmetic operators.</td><td>Depends on resolved implementation.</td></tr>
+<tr><td>Region</td><td>Control-flow construct such as If/ForEach/Cache.</td><td>Often stateful.</td></tr>
+<tr><td>Pad / IOBox</td><td>Value holder, property access, patch boundary, or comment.</td><td>Can represent persistent/editable values.</td></tr></table>
+
+<h3>6.2 Spreads</h3>
+<p><code>Spread&lt;T&gt;</code> is vvvv's immutable collection type. It is central to dataflow programming because many nodes automatically operate over spreads. In visual patching, indexing often uses cyclic semantics; in C# code, authors must handle count and indexing explicitly.</p>
+<p>Performance-sensitive C# nodes should avoid LINQ and per-frame allocations. Use <code>SpreadBuilder&lt;T&gt;</code>, cache unchanged outputs, and prefer <code>ReadOnlySpan&lt;T&gt;</code> internally or for hot-path outputs where appropriate.</p>
+
+<h3>6.3 Nil and empty data</h3>
+<p>vvvv workflows often need to distinguish absent/empty data from valid data. In C#, spreads should never be <code>null</code>; use <code>Spread&lt;T&gt;.Empty</code>. Ignoring nil/empty cases is a common source of visual-patch bugs.</p>
+
+<h3>6.4 Event nodes and temporal semantics</h3>
+<p>Common temporal nodes/patterns include:</p>
+<ul><li><strong>Bang:</strong> one-frame trigger.</li><li><strong>Toggle:</strong> persistent boolean state toggled by events.</li><li><strong>Changed:</strong> detects value changes between frames.</li><li><strong>FrameDelay:</strong> delays a value by one frame and breaks cycles.</li></ul>
+<p>These are crucial because vvvv programs are temporal systems, not just data transformations.</p>
+</section>
+
+<section id="dotnet" class="section">
+<h2>7. .NET and C# integration</h2>
+<p>vvvv gamma is deeply integrated with .NET 8. C# can be used to implement custom nodes, wrap libraries, manage resources, and expose services. This makes the .NET ecosystem available from visual patches.</p>
+
+<h3>7.1 Source project vs binary reference</h3>
+<table><tr><th>Workflow</th><th>How it works</th><th>Pros</th><th>Cons</th></tr>
+<tr><td>Source project reference</td><td><code>.vl</code> references a <code>.csproj</code>; vvvv compiles source via Roslyn into in-memory assemblies.</td><td>Live reload, fast iteration, no external build needed during patching.</td><td>Agent cannot directly see vvvv compiler output unless bridged; state resets on reload.</td></tr>
+<tr><td>Binary / NuGet reference</td><td>vvvv loads pre-built DLL/package.</td><td>Stable, package-friendly, suitable for larger libraries.</td><td>Requires external build and vvvv restart to pick up changes.</td></tr></table>
+
+<h3>7.2 Import model</h3>
+<p>Types appear in the node browser when they are public and covered by an assembly-level import attribute:</p>
+<pre>[assembly: ImportAsIs(Namespace = "MyCompany.MyLibrary", Category = "MyLibrary")]
+// or ImportNamespace(...) multiple times
+// or ImportType(typeof(MyNode), Category = "...")</pre>
+<p><code>[ProcessNode]</code> does <em>not</em> make a class visible. It marks it as a stateful lifecycle-managed node. Visibility is controlled by public API plus import attributes.</p>
+
+<h3>7.3 ProcessNode C# pattern</h3>
+<pre>[ProcessNode]
+public sealed class MyProcessor : IDisposable
+{
+    private float _lastInput;
+    private float _cached;
+
+    public void Update(out float result, float input = 0f, bool reset = false)
+    {
+        if (reset || input != _lastInput)
+        {
+            _cached = Compute(input);
+            _lastInput = input;
+        }
+        result = _cached; // always assign outputs
+    }
+
+    public void Dispose() { /* release resources */ }
+}</pre>
+<p>Key conventions: out parameters first, value inputs after, no unnecessary public helpers, no <code>Node</code> suffix in user-facing names, XML comments for tooltips, dispose native resources, avoid allocations in <code>Update</code>.</p>
+
+<h3>7.4 Services and NodeContext</h3>
+<p>Process node constructors can receive <code>NodeContext</code> to access app-host services, frame clocks, Stride game context, logging, or package-registered services. Node libraries can register services through <code>AssemblyInitializer</code>.</p>
+
+<h3>7.5 Async and threading</h3>
+<p><code>Update()</code> runs on the VL main thread, so long-running work should be moved to tasks or background threads. Background results should be marshalled back through the captured <code>SynchronizationContext</code>.</p>
+</section>
+
+<section id="packages" class="section">
+<h2>8. Packages, libraries, and dependency resolution</h2>
+<p>vvvv functionality is distributed through packages, commonly NuGet packages that can contain a main <code>.vl</code> document, compiled DLLs, shaders, help patches, tests, and metadata.</p>
+
+<h3>8.1 Package layout</h3>
+<pre>VL.MyLibrary/
+  VL.MyLibrary.vl
+  VL.MyLibrary.nuspec
+  lib/net8.0/VL.MyLibrary.dll
+  src/VL.MyLibrary.csproj
+  shaders/MyEffect_TextureFX.sdsl
+  help/HowTo Use MyNode.vl
+  tests/MyFeatureTest.vl</pre>
+<p>A library is recognized when folder name, main <code>.vl</code> file, and <code>.nuspec</code> share the same name. C# projects should compile into <code>lib/net8.0/</code> for package deployment.</p>
+
+<h3>8.2 Dependency types</h3>
+<table><tr><th>Dependency</th><th>Meaning</th></tr>
+<tr><td><code>NugetDependency</code></td><td>Reference to a NuGet/VL package such as <code>VL.CoreLib</code> or <code>VL.Stride</code>.</td></tr>
+<tr><td><code>DocumentDependency</code></td><td>Reference to another <code>.vl</code> document.</td></tr>
+<tr><td><code>PlatformDependency</code></td><td>Reference to platform assemblies such as DLLs.</td></tr>
+<tr><td><code>PackageReference</code> in <code>.csproj</code></td><td>NuGet dependency for C# source projects.</td></tr></table>
+
+<h3>8.3 Editable packages</h3>
+<p>For development, vvvv can load local packages from source using CLI flags:</p>
+<pre>vvvv.exe --package-repositories "D:\Projects" \
+         --editable-packages "VL.MyLib*" \
+         -o "D:\Projects\VL.MyLib\help\HowTo Use Feature.vl"</pre>
+<p><code>--package-repositories</code> points at parent folders containing packages; <code>--editable-packages</code> chooses which packages to load from source.</p>
+
+<div class="note warn"><strong>Pitfall:</strong> pointing package repositories at a folder containing large standard-library submodules can cause vvvv to discover and recompile a lot of source, slowing startup dramatically.</div>
+</section>
+
+<section id="channels" class="section">
+<h2>9. Channels and reactive state</h2>
+<p>Channels are named, typed, observable value containers. They provide a reactive state layer that can be accessed from patches, C# nodes, UI bindings, and external systems.</p>
+
+<h3>9.1 Concepts</h3>
+<table><tr><th>Concept</th><th>Description</th></tr>
+<tr><td><code>IChannel&lt;T&gt;</code></td><td>Observable container with current value.</td></tr>
+<tr><td><code>IChannelHub</code></td><td>App-wide hub for public channel lookup.</td></tr>
+<tr><td>Path</td><td>Dot-separated hierarchical name, e.g. <code>Project.Scene.Camera.Position</code>.</td></tr>
+<tr><td><code>[CanBePublished(true)]</code></td><td>Marks .NET types whose public properties can become sub-channels.</td></tr>
+<tr><td>Bang channel</td><td>Event-like channel, usually <code>System.Reactive.Unit</code>.</td></tr></table>
+
+<h3>9.2 Hierarchical propagation</h3>
+<p>When a publishable object is exposed, vvvv can create sub-channels for properties. Writing a root model updates children; writing a leaf can propagate upward. Spread elements can be addressed with bracket paths such as <code>Project.Items[0].Name</code>.</p>
+
+<h3>9.3 C# access pattern</h3>
+<pre>var hub = IChannelHub.HubForApp;
+var channel = hub.TryGetChannel("Settings.Audio.Volume");
+if (channel?.Object is float volume)
+    Apply(volume);</pre>
+<p>Nodes should retry-bind because channels may not exist at constructor time. Subscriptions must be disposed. Feedback loops require suppression flags when writing to a channel you also observe.</p>
+
+<div class="note warn"><strong>Critical rule from skill corpus:</strong> avoid <code>TryAddChannel()</code> for public channel creation because it can create null-value channels that crash sub-channel reflection. Use lookup-only patterns and let the publishing system create channels.</div>
+</section>
+
+<section id="rendering" class="section">
+<h2>10. Rendering, shaders, and media ecosystem</h2>
+<p>vvvv gamma uses Stride for 3D rendering and SDSL for shaders, while also supporting 2D rendering through packages such as VL.Skia and GPU/compute workflows through packages such as VL.Fuse.</p>
+
+<h3>10.1 Stride and SDSL</h3>
+<p>SDSL is Stride's shader language: a superset of HLSL with shader classes, inheritance/mixins, streams, composition, and override semantics. Shaders live in <code>.sdsl</code> files and can be auto-registered as nodes by filename suffix.</p>
+<table><tr><th>Suffix</th><th>Generated node category</th><th>Typical use</th></tr>
+<tr><td><code>_TextureFX.sdsl</code></td><td>TextureFX</td><td>Image processing/filter passes.</td></tr>
+<tr><td><code>_DrawFX.sdsl</code></td><td>DrawFX</td><td>Drawing/rendering shaders.</td></tr>
+<tr><td><code>_ComputeFX.sdsl</code></td><td>ComputeFX</td><td>GPU compute workloads.</td></tr>
+<tr><td><code>_ShaderFX.sdsl</code></td><td>ShaderFX</td><td>Composable shader graph effects.</td></tr></table>
+
+<h3>10.2 Streams and composition</h3>
+<p>SDSL streams avoid manual VS/PS struct plumbing. ShaderFX composition lets patches connect shader components visually, while SDSL <code>compose</code> slots provide dynamic shader composition.</p>
+
+<h3>10.3 Package domains</h3>
+<table><tr><th>Domain</th><th>Representative packages / integrations</th></tr>
+<tr><td>3D rendering</td><td>VL.Stride, VL.Fuse, Stride runtime.</td></tr>
+<tr><td>2D/UI</td><td>VL.Skia, ImGui, Avalonia, CEF/HTML.</td></tr>
+<tr><td>Vision/ML</td><td>OpenCV, MediaPipe, YOLO, ONNX Runtime.</td></tr>
+<tr><td>Audio</td><td>NAudio-based VL.Audio, VST, SuperCollider bridges.</td></tr>
+<tr><td>Hardware</td><td>Depth cameras, robotics, tracking, DMX/Art-Net, LiDAR, MIDI/OSC.</td></tr>
+<tr><td>Networking</td><td>HTTP, WebSocket, TCP/UDP, MQTT, Redis, ZeroMQ, Modbus, Ableton Link.</td></tr></table>
+
+<div class="note gap"><strong>Missing detail:</strong> this report does not deeply analyze VL.Stride's internal render graph, resource lifetime model, or Fuse's shader graph internals. Those require package-specific source/docs or a Windows runtime investigation.</div>
+</section>
+
+<section id="testing" class="section">
+<h2>11. Testing, debugging, and diagnostics</h2>
+
+<h3>11.1 VL.TestFramework</h3>
+<p>Package authors can use VL.TestFramework with NUnit to load and compile <code>.vl</code> documents and optionally run entry points.</p>
+<pre>[Test]
+public async Task MyPatchCompilesAndRuns()
+{
+    await testEnvironment.LoadAndTestAsync("path/to/MyPatch.vl", runEntryPoint: true);
+}</pre>
+<p>Test documents commonly live in <code>tests/</code>; help patches in <code>help/</code> can be compile-tested. Test nodes in VL patches can assert equality, non-null values, expected errors, and sequence equality.</p>
+
+<h3>11.2 Debugging C# nodes</h3>
+<p>Debugging usually involves launching or attaching to <code>vvvv.exe</code> from Visual Studio or VS Code. The <code>--debug</code> flag improves debug symbol support but slows live compilation. <code>--stoppedonstartup</code> helps set breakpoints before updates start. <code>--nocache</code> can help with stale symbols.</p>
+
+<h3>11.3 Logs</h3>
+<p>When enabled, vvvv writes logs to <code>%USERPROFILE%\Documents\vvvv\gamma\vvvv.log</code>. Logs are crucial for agentic diagnostics because they expose compile/runtime errors that static analysis cannot see.</p>
+
+<h3>11.4 Common failure classes</h3>
+<table><tr><th>Area</th><th>Typical issue</th><th>Likely fix</th></tr>
+<tr><td>C# node visibility</td><td>Node not in browser.</td><td>Check import attributes, public API, target <code>net8.0</code>, build errors.</td></tr>
+<tr><td>Runtime state</td><td>Null/default downstream outputs.</td><td>Always assign outputs, cache values, handle nil/empty spreads.</td></tr>
+<tr><td>Performance</td><td>Frame drops / GC spikes.</td><td>Avoid allocations and LINQ in <code>Update</code>, cache resources.</td></tr>
+<tr><td>Threading</td><td>Intermittent crashes.</td><td>Marshal background results to VL thread.</td></tr>
+<tr><td>Cycles</td><td>Circular dependency warnings.</td><td>Insert <code>FrameDelay</code>.</td></tr>
+<tr><td>Shaders</td><td>SDSL compile errors.</td><td>Check semicolons, override, static const placement, enum binding.</td></tr></table>
+</section>
+
+<section id="startup" class="section">
+<h2>12. Startup, filesystem paths, and command-line operation</h2>
+<p>vvvv is Windows-only at the time of this investigation. Important paths are convention-based and useful for automation.</p>
+<table><tr><th>Location</th><th>Typical path</th></tr>
+<tr><td>Install directory</td><td><code>C:\Program Files\vvvv\vvvv_gamma_X.Y-win-x64\</code></td></tr>
+<tr><td>User data</td><td><code>%LOCALAPPDATA%\vvvv\gamma\</code></td></tr>
+<tr><td>Documents root</td><td><code>%USERPROFILE%\Documents\vvvv\gamma\</code></td></tr>
+<tr><td>Sketches</td><td><code>%USERPROFILE%\Documents\vvvv\gamma\Sketches</code></td></tr>
+<tr><td>Exports</td><td><code>%USERPROFILE%\Documents\vvvv\gamma\Exports</code></td></tr>
+<tr><td>User packages</td><td><code>%LOCALAPPDATA%\vvvv\gamma\nugets</code></td></tr>
+<tr><td>Log file</td><td><code>%USERPROFILE%\Documents\vvvv\gamma\vvvv.log</code></td></tr></table>
+
+<h3>Useful CLI flags</h3>
+<table><tr><th>Flag</th><th>Purpose</th></tr>
+<tr><td><code>-o</code> / <code>--open</code></td><td>Open one or multiple patches.</td></tr>
+<tr><td><code>--debug</code></td><td>Enable debug symbols; useful for breakpoints.</td></tr>
+<tr><td><code>--allowmultiple</code></td><td>Allow multiple vvvv instances.</td></tr>
+<tr><td><code>--log</code></td><td>Enable log output.</td></tr>
+<tr><td><code>--nocache</code></td><td>Force rebuild/avoid stale cache issues.</td></tr>
+<tr><td><code>--noextensions</code></td><td>Disable extensions for troubleshooting.</td></tr>
+<tr><td><code>--disable-backend</code></td><td>Fast/minimal editing mode.</td></tr>
+<tr><td><code>--stoppedonstartup</code></td><td>Launch paused.</td></tr>
+<tr><td><code>--package-repositories</code></td><td>Add package search roots.</td></tr>
+<tr><td><code>--editable-packages</code></td><td>Load matching packages from source.</td></tr></table>
+</section>
+
+<section id="sdk" class="section">
+<h2>13. Observations from the public <code>vvvv-sdk</code> clone</h2>
+<p>The repository cloned into this project at <code>vvvv-sdk/</code> appears primarily to be historical vvvv45/public SDK code, not current vvvv gamma source. It therefore should not be treated as authoritative for gamma internals. However, it provides useful architectural signals.</p>
+
+<h3>13.1 Runtime host pattern</h3>
+<p><code>vvvv45/src/integration/VVVV.VLIntegration/src/RuntimeHost.cs</code> shows a host that manages runtime instances, frame events, compilation updates, exceptions, run modes, and hot-swap synchronization. This reinforces the idea that a live VL system has observable runtime events: frames, updates, and exceptions.</p>
+
+<h3>13.2 Node factory pattern</h3>
+<p><code>NodeFactory.cs</code> shows <code>.vl</code> integration through a factory that loads documents, discovers node definitions, updates node infos, creates runtime instances, and responds to compilation updates. This matches the broader model of documents being compiled into runtime entry points rather than directly interpreted as static XML.</p>
+
+<h3>13.3 Command pattern</h3>
+<p>The historical core has serializable commands such as ADD, REMOVE, SET, RENAME, and COMPOUND with undo/redo semantics. Even if gamma's current internals differ, this is an excellent model for agentic patch mutation: small typed operations, transaction grouping, undoability, and serialization.</p>
+
+<div class="note gap"><strong>Limit:</strong> because current gamma internals were not available locally, exact current APIs for host/session/compiler/command systems remain unverified.</div>
+</section>
+
+<section id="gaps" class="section">
+<h2>14. Missing information and open research areas</h2>
+<div class="card">
+<h3>Known gaps</h3>
+<ol>
+<li><strong>Current gamma source internals:</strong> the public clone is historical vvvv45. Current gamma compiler/editor/runtime source was not available in this session.</li>
+<li><strong>VL.Lang Session API inventory:</strong> exact nodes, capabilities, data types, mutation functions, and limitations need inspection inside vvvv.</li>
+<li><strong>Editor command/mutation API:</strong> unclear whether external or HDE extension code can safely perform all operations needed for arbitrary patch edits with undo integration.</li>
+<li><strong>Node browser/symbol resolution:</strong> static XML can identify many references, but full semantic resolution likely requires vvvv's compiler/session.</li>
+<li><strong>Package resolver details:</strong> exact cache, editable package precedence, version conflict resolution, and NuGet source behaviour are not fully mapped.</li>
+<li><strong>Runtime introspection:</strong> exact access to live node instances, pin values, errors, timing, and allocation metrics requires experimentation.</li>
+<li><strong>VL.Stride/Fuse internals:</strong> render graph, GPU resource lifecycle, shader compilation pipeline, and effect composition need package-specific investigation.</li>
+<li><strong>Export/deployment pipeline:</strong> this report does not analyze exported app build mechanics in depth.</li>
+</ol>
+</div>
+</section>
+
+<section id="agent" class="section">
+<h2>15. Implications for agentic development</h2>
+<p>A vvvv-agent should be designed around the ecosystem's real layers rather than forcing vvvv into a normal text-code workflow.</p>
+
+<div class="grid">
+<div class="card span6"><h3>High-confidence capabilities</h3><ul><li>Index project files and dependencies.</li><li>Parse and validate basic <code>.vl</code> XML structure.</li><li>Generate and review C# node libraries.</li><li>Set up package structure, <code>.csproj</code>, imports, help/test layout.</li><li>Parse logs and common errors.</li><li>Generate VL.TestFramework test scaffolding.</li></ul></div>
+<div class="card span6"><h3>Capabilities needing a bridge</h3><ul><li>Know what the user has selected or hovered.</li><li>Resolve node references semantically against loaded packages.</li><li>Read live pin values or runtime errors in context.</li><li>Apply patch mutations through editor-safe commands.</li><li>Observe frame timing and runtime resource state.</li></ul></div>
+</div>
+
+<h3>Recommended conceptual architecture</h3>
+<div class="diagram">External agent core
+  ├─ File tools: read/write/search/git/dotnet
+  ├─ vvvv static tools: vl-map, vl-lint, patch-op planner
+  ├─ C# tools: node/library generator, analyzer, tests
+  ├─ Runtime tools: log parser, test runner, launcher
+  └─ Bridge client
+        ├─ HDE extension: selection, hovered node, commands, windows
+        ├─ Channel bridge: debug values, app model, probes
+        └─ Service bridge: deeper package/runtime integration</div>
+
+<h3>Practical stance</h3>
+<p>The safest path is to start with <strong>read-only understanding and C# support</strong>, then add <strong>runtime/test/log feedback</strong>, then add <strong>editor context</strong>, and only later attempt <strong>transactional patch mutation</strong>. The mutation layer should use a typed operation IR, not raw LLM-authored XML.</p>
+
+<div class="note"><strong>Bottom line:</strong> vvvv is already a live, multi-representation programming system. Agentic development is feasible if the agent respects those representations: XML files, visual editor context, compiler symbols, runtime instances, channels, packages, and tests.</div>
+</section>
+
+</article>
+</main>
+</body>
+</html>
