@@ -28,13 +28,16 @@ Build phase (Windows, 2026-06-19) — **first working version of the system**:
 4. `tools/vl-map` — static project cartographer (definitions, deps, graph, version
    drift, dangling refs, dup IDs). Verified against `testbed/dodecahedron-vl`.
 5. `bridge/VL.Agent` — in-vvvv node library; `WriteEditorSnapshot(path)` exports live
-   editor state to JSON. **Compiles** against gamma 7.2; runtime load in vvvv pending.
+   editor state to JSON. **Runtime-verified in vvvv (2026-06-19)**: selection updates
+   live. The full architecture is now proven end-to-end on real hardware.
 6. `testbed/dodecahedron-vl` — real project as validation corpus (origin detached,
    gitignored). `CLAUDE.md` — agent guide for the repo.
 
-### Immediate next step
-Load `bridge/VL.Agent` into vvvv and run `WriteEditorSnapshot` (GUI step, do with the
-user) — proves the runtime bridge end-to-end. Recipe in `bridge/README.md`.
+### Immediate next steps
+- Enrich the snapshot: resolve each selection object via `ILiveElement` into structured
+  data (node id/name/kind/messages) instead of `ToString()`.
+- Build the write path: `IDevSession.Current.CurrentSolution.SetPinValue(...).Confirm(...)`
+  and `SessionNodes.AddMessage(...)` annotations (mutation — design carefully).
 
 ## Current architectural thesis
 

@@ -12,8 +12,8 @@ coding agent can read it. Built against the assemblies of the installed gamma 7.
 ### Status
 
 - ✅ **Compiles** against gamma 7.2 (`net8.0-windows`), 0 errors.
-- ⏳ **Runtime load/behaviour in vvvv: not yet verified** — needs loading into the
-  editor and triggering the node (GUI step). See the test recipe below.
+- ✅ **Runtime-verified in vvvv (2026-06-19)** — loaded into the editor, `WriteEditorSnapshot`
+  produces JSON, and the `selection` array updates live as the patch selection changes.
 
 ### Key finding that shaped the design
 
