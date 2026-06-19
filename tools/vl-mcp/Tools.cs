@@ -70,7 +70,8 @@ internal static class Tools
                 ["description"] =
                     "Set an input pin's value on a node/element in the live vvvv editor, undo-integrated. "
                   + "Use the `UniqueId` of a selected element from vvvv_editor_state. The vvvv-side "
-                  + "CommandProcessor node must be running in the patch. Returns the apply result.",
+                  + "AgentHost/CommandProcessor must be running. Prefer AgentHost in an HDE extension. "
+                  + "Returns the apply result.",
                 ["inputSchema"] = new JsonObject
                 {
                     ["type"] = "object",
@@ -100,6 +101,57 @@ internal static class Tools
                     ["required"] = new JsonArray { "uniqueId", "pin", "value" },
                 },
             },
+            new JsonObject
+            {
+                ["name"] = "vvvv_paste",
+                ["description"] =
+                    "EXPERIMENTAL dev-only live paste. Drops a clipboard-style vvvv Canvas snippet "
+                  + "for the vvvv-side AgentHost/CommandProcessor to paste into the active canvas using "
+                  + "a deferred UI-context call. Requires experimental=true because this mutates the live editor graph.",
+                ["inputSchema"] = new JsonObject
+                {
+                    ["type"] = "object",
+                    ["properties"] = new JsonObject
+                    {
+                        ["snippet"] = new JsonObject
+                        {
+                            ["type"] = "string",
+                            ["description"] = "Clipboard-style <Canvas ...> model snippet.",
+                        },
+                        ["x"] = new JsonObject
+                        {
+                            ["type"] = "number",
+                            ["description"] = "Paste X coordinate in the active canvas. Defaults to 0.",
+                        },
+                        ["y"] = new JsonObject
+                        {
+                            ["type"] = "number",
+                            ["description"] = "Paste Y coordinate in the active canvas. Defaults to 0.",
+                        },
+                        ["experimental"] = new JsonObject
+                        {
+                            ["type"] = "boolean",
+                            ["description"] = "Must be true to acknowledge this dev-only live graph mutation path.",
+                        },
+                        ["pauseRuntime"] = new JsonObject
+                        {
+                            ["type"] = "boolean",
+                            ["description"] = "Pause vvvv runtimes before paste. Useful for snippets that instantiate runtime-heavy nodes.",
+                        },
+                        ["leaveRuntimePaused"] = new JsonObject
+                        {
+                            ["type"] = "boolean",
+                            ["description"] = "Keep runtimes paused after paste so newly inserted nodes cannot immediately execute.",
+                        },
+                        ["agentDir"] = new JsonObject
+                        {
+                            ["type"] = "string",
+                            ["description"] = "Optional override for the .agent directory.",
+                        },
+                    },
+                    ["required"] = new JsonArray { "snippet", "experimental" },
+                },
+            },
         },
     };
 
@@ -113,6 +165,7 @@ internal static class Tools
             "vvvv_index_project" => IndexProject(args),
             "vvvv_editor_state" => EditorState(args),
             "vvvv_set_pin_value" => SetPinValue(args),
+            "vvvv_paste" => Paste(args),
             _ => throw new RpcException(-32602, $"unknown tool: {name}"),
         };
 
@@ -158,14 +211,6 @@ internal static class Tools
         if (string.IsNullOrWhiteSpace(pin)) throw new RpcException(-32602, "pin is required");
         if (args?["value"] is not JsonNode value) throw new RpcException(-32602, "value is required");
 
-        var agentDir = (string?)args?["agentDir"];
-        if (string.IsNullOrWhiteSpace(agentDir)) agentDir = DefaultAgentDir;
-
-        var requestsDir = Path.Combine(agentDir, "requests");
-        var resultsDir = Path.Combine(agentDir, "results");
-        Directory.CreateDirectory(requestsDir);
-
-        var id = Guid.NewGuid().ToString("N");
         var request = new JsonObject
         {
             ["op"] = "setPinValue",
@@ -174,6 +219,40 @@ internal static class Tools
             ["value"] = value.DeepClone(),
         };
         if ((string?)args?["type"] is { } typeHint) request["type"] = typeHint;
+
+        return SubmitRequest(request, (string?)args?["agentDir"]);
+    }
+
+    private static string Paste(JsonNode? args)
+    {
+        var snippet = (string?)args?["snippet"];
+        if (string.IsNullOrWhiteSpace(snippet)) throw new RpcException(-32602, "snippet is required");
+        if ((bool?)args?["experimental"] != true)
+            throw new RpcException(-32602, "experimental=true is required for vvvv_paste");
+
+        var request = new JsonObject
+        {
+            ["op"] = "paste",
+            ["snippet"] = snippet,
+            ["experimental"] = true,
+        };
+        if ((double?)args?["x"] is { } x) request["x"] = x;
+        if ((double?)args?["y"] is { } y) request["y"] = y;
+        if ((bool?)args?["pauseRuntime"] is { } pauseRuntime) request["pauseRuntime"] = pauseRuntime;
+        if ((bool?)args?["leaveRuntimePaused"] is { } leaveRuntimePaused) request["leaveRuntimePaused"] = leaveRuntimePaused;
+
+        return SubmitRequest(request, (string?)args?["agentDir"]);
+    }
+
+    private static string SubmitRequest(JsonObject request, string? agentDir)
+    {
+        if (string.IsNullOrWhiteSpace(agentDir)) agentDir = DefaultAgentDir;
+
+        var requestsDir = Path.Combine(agentDir, "requests");
+        var resultsDir = Path.Combine(agentDir, "results");
+        Directory.CreateDirectory(requestsDir);
+
+        var id = Guid.NewGuid().ToString("N");
 
         // Write atomically (temp + rename) so the watcher never sees a partial file.
         var requestPath = Path.Combine(requestsDir, id + ".json");
@@ -197,7 +276,7 @@ internal static class Tools
         }
 
         return "{\"ok\":false,\"error\":\"timed out waiting for vvvv to apply the request. "
-             + "Is the CommandProcessor node running in the patch, and pointed at this .agent dir?\"}";
+             + "Is AgentHost or CommandProcessor running and pointed at this .agent dir?\"}";
     }
 
 }

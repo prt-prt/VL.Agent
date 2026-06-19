@@ -9,6 +9,9 @@ installed vvvv gamma 7.2 assemblies.
 
 Verified on Windows with vvvv gamma 7.2 on 2026-06-19.
 
+`VL.Agent.HDE.vl` is the preferred host. It runs the bridge in the editor/HDE
+runtime, outside the user patch being edited.
+
 ## Nodes
 
 ### `WriteEditorSnapshot`
@@ -57,7 +60,7 @@ and writes matching results to:
 <project>/.agent/results/
 ```
 
-Supported operation:
+Supported operations:
 
 ```json
 {
@@ -79,18 +82,54 @@ SessionNodes.CurrentSolution
 
 This makes the edit undo-integrated in vvvv.
 
-Defensive operation:
+`CommandProcessor` can still be dropped into a normal patch for quick tests, but
+that mode is fragile. If the user patch pauses or throws during `Update`, the
+processor stops too and cannot apply recovery commands.
 
-- `"paste"` requests are rejected. The experiment showed that calling
-  `SessionNodes.Paste(...)` from `CommandProcessor.Update()` can mutate the editor
-  graph while the patch editor is rendering, causing
-  `Collection was modified; enumeration operation may not execute`.
+### `AgentHost`
+
+Process node intended for `.HDE.vl` editor extensions. It wraps `EditorWatcher`
+and `CommandProcessor`, resolves the `.agent` directory from the loaded non-HDE
+user document, and keeps processing in the editor runtime.
+
+Use the included scaffold:
+
+```text
+bridge/VL.Agent.HDE.vl
+```
+
+This is the recommended architecture for live writes.
+
+Experimental operation:
+
+```json
+{
+  "op": "paste",
+  "snippet": "<Canvas ... />",
+  "x": 300,
+  "y": 300,
+  "experimental": true
+}
+```
+
+The old direct paste experiment showed that calling `SessionNodes.Paste(...)` from
+`CommandProcessor.Update()` can mutate the editor graph while the patch editor is
+rendering, causing `Collection was modified; enumeration operation may not
+execute`.
+
+The current paste path requires `experimental=true`, captures the current UI
+`SynchronizationContext`, posts the actual paste until after `Update` returns, and
+writes the result asynchronously.
+
+Paste also supports `pauseRuntime` and `leaveRuntimePaused`. These are useful only
+when the command processor runs in `AgentHost` / HDE mode: the user runtime can be
+paused while the editor-runtime bridge continues to process requests.
 
 ## MCP Loop
 
 ```text
-EditorWatcher -> .agent/editor-state.json -> vl-mcp -> MCP client
-MCP client -> .agent/requests/*.json -> CommandProcessor -> .agent/results/*.json
+AgentHost -> .agent/editor-state.json -> vl-mcp -> MCP client
+MCP client -> .agent/requests/*.json -> AgentHost -> .agent/results/*.json
 ```
 
 See `tools/vl-mcp/README.md`.

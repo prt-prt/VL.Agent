@@ -1,7 +1,9 @@
 # tools
 
-Standalone .NET 10 command-line tools for inspecting vvvv gamma projects and
-exposing that information to MCP clients.
+Standalone .NET command-line tools for inspecting vvvv gamma projects and
+exposing that information to MCP clients. They target `net10.0` by default; use
+`-p:AgenticVlDev=true` to build a local `net8.0` dev target on machines without
+the .NET 10 SDK.
 
 The tools are static/metadata-only unless explicitly noted. They do not execute a
 vvvv project.
@@ -16,6 +18,7 @@ Metadata-only API surface dumper for a vvvv gamma installation. It uses
 cd tools\vl-probe
 dotnet run -c Release
 dotnet run -c Release -- --install "C:\Program Files\vvvv\vvvv_gamma_7.2-win-x64" --targets VL.Lang.dll,VL.HDE.dll,VL.Core.dll --out output
+dotnet run -c Release -p:AgenticVlDev=true -- --targets VL.Lang.dll,VL.Core.dll --out output
 ```
 
 Outputs:
@@ -55,19 +58,30 @@ Tools exposed:
 - `vvvv_index_project` - static project index via `vl-map`
 - `vvvv_editor_state` - live editor snapshot written by `EditorWatcher`
 - `vvvv_set_pin_value` - narrow undo-integrated pin edit through `CommandProcessor`
+- `vvvv_paste` - experimental dev-only deferred paste, requires `experimental=true`
+  and supports runtime pausing when the bridge is hosted through `AgentHost`
 
 Build and point your MCP client at the executable:
 
 ```powershell
 dotnet build tools\vl-mcp\vl-mcp.csproj -c Release
+dotnet build tools\vl-mcp\vl-mcp.csproj -c Release -p:AgenticVlDev=true
 ```
 
 ```text
 tools\vl-mcp\bin\Release\net10.0\vl-mcp.exe
+tools\vl-mcp\bin\Release\net8.0\vl-mcp.exe
 ```
 
 Do not use `dotnet run` as an MCP command, because build output on stdout corrupts
 the JSON-RPC stream.
 
-Node insertion/paste is not exposed. The current paste experiment can mutate the
-editor graph while the patch editor is rendering and destabilize the editor view.
+For local MCP development, use `tools\vl-mcp\dev.ps1` as the MCP command. It
+rebuilds the `net8.0` dev target before starting the server and keeps build logs
+on stderr.
+
+Node insertion/paste is only exposed as an opt-in dev experiment. The old direct
+paste path can mutate the editor graph while the patch editor is rendering and
+destabilize the editor view; the current experiment defers paste onto the UI
+synchronization context. Host the bridge in `bridge/VL.Agent.HDE.vl` so user patch
+runtime pauses/exceptions do not stop the command processor.

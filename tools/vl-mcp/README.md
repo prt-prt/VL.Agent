@@ -13,24 +13,30 @@ live editor snapshot written by `bridge/VL.Agent`.
 | `vvvv_index_project` | read-only | Indexes a vvvv project directory and returns definitions, dependencies, document graph, version drift, missing document deps, duplicate IDs, and parse failures. |
 | `vvvv_editor_state` | read-only | Reads `.agent/editor-state.json`, which is written by the in-vvvv `EditorWatcher` node. |
 | `vvvv_set_pin_value` | write | Drops a request for the in-vvvv `CommandProcessor` node to set one input pin value through vvvv's undo-integrated solution API. |
+| `vvvv_paste` | experimental write | Drops a clipboard-style Canvas snippet for deferred paste into the active canvas. Requires `experimental=true`; supports `pauseRuntime` and `leaveRuntimePaused`. |
 
 `vvvv_set_pin_value` requires a running `CommandProcessor` node in the patch and a
 `UniqueId` from `vvvv_editor_state`.
 
-Node insertion/paste is intentionally not exposed. Calling `SessionNodes.Paste`
+The direct paste path is intentionally not stable. Calling `SessionNodes.Paste`
 from a patch `Update` was tested and can break the graphical patch editor render
 loop with `Collection was modified; enumeration operation may not execute`.
+`vvvv_paste` is a dev-only experiment that defers the paste through the UI
+synchronization context and writes its result asynchronously. For runtime-heavy
+snippets, run the bridge through `AgentHost` in an HDE extension and pass
+`pauseRuntime=true`.
 
 ## Build
 
 ```powershell
 dotnet build tools\vl-mcp\vl-mcp.csproj -c Release
+dotnet build tools\vl-mcp\vl-mcp.csproj -c Release -p:AgenticVlDev=true
 ```
 
 Point MCP clients at the built exe:
 
 ```text
-C:\Users\3e8\projects\agentic-vl\tools\vl-mcp\bin\Release\net10.0\vl-mcp.exe
+C:\Users\prt\Documents\1_Projects\agentic-vl\tools\vl-mcp\bin\Release\net10.0\vl-mcp.exe
 ```
 
 Do not point MCP clients at `dotnet run`; build output on stdout will corrupt the
@@ -42,10 +48,32 @@ JSON-RPC stream.
 {
   "mcpServers": {
     "vvvv-agent": {
-      "command": "C:\\Users\\3e8\\projects\\agentic-vl\\tools\\vl-mcp\\bin\\Release\\net10.0\\vl-mcp.exe"
+      "command": "C:\\Users\\prt\\Documents\\1_Projects\\agentic-vl\\tools\\vl-mcp\\bin\\Release\\net10.0\\vl-mcp.exe"
     }
   }
 }
+```
+
+## Dev Mode
+
+For local development on this machine, where SDK 10 may not be installed, use the
+dev target and launcher:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\vl-mcp\dev.ps1
+```
+
+The launcher builds `net8.0` with `-p:AgenticVlDev=true`, writes build logs to
+stderr, then starts:
+
+```text
+tools\vl-mcp\bin\Release\net8.0\vl-mcp.exe
+```
+
+Continuous compile checks without starting an MCP transport:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\vl-mcp\dev.ps1 -Watch
 ```
 
 Launch the MCP client from the vvvv project directory. By default the server reads:
@@ -67,11 +95,16 @@ defaults where supported.
 ## Live-State Loop
 
 1. In vvvv, reference `bridge/VL.Agent/VL.Agent.csproj`.
-2. Drop an `EditorWatcher` node into the project patch and leave `path` empty.
+2. Prefer `bridge/VL.Agent.HDE.vl` and its `AgentHost` node so the bridge runs in
+   the editor runtime. Patch-local `EditorWatcher` / `CommandProcessor` nodes are
+   only for quick tests.
 3. Call `vvvv_editor_state` from the MCP client to see loaded documents, selection,
    compiler messages, and per-element `UniqueId` values.
 4. To test a write, also drop a `CommandProcessor` node with `path` empty and call
    `vvvv_set_pin_value`.
+5. To test paste, call `vvvv_paste` with a self-contained Canvas snippet,
+   coordinates, `experimental=true`, and usually `pauseRuntime=true`. Watch vvvv
+   closely; this is not yet a stable editing primitive.
 
 ## Protocol
 

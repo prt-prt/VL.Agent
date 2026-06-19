@@ -1,8 +1,14 @@
 {
   "mcpServers": {
     "vvvv-agent": {
-      "command": "C:\\Users\\3e8\\projects\\agentic-vl\\tools\\vl-mcp\\bin\\Release\\net10.0\\vl-mcp.exe",
-      "args": []
+      "command": "powershell",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "C:\\Users\\prt\\Documents\\1_Projects\\agentic-vl\\tools\\vl-mcp\\dev.ps1"
+      ]
     }
   }
 }

@@ -1,6 +1,9 @@
 using System.Text.Json;
+using System.Drawing;
 using VL.Core;
 using VL.Core.Import;
+using VL.Lang.Platforms;
+using VL.Lang.Symbols;
 using VL.Lang.PublicAPI;
 using VL.Model;
 
@@ -52,10 +55,13 @@ public class CommandProcessor
         int appliedThisFrame = 0;
         foreach (var file in files)
         {
-            var result = ProcessFile(file);
-            _lastResult = result;
-            lastResult = result;
-            WriteResult(resultsDir, Path.GetFileName(file), result);
+            var result = ProcessFile(file, resultsDir);
+            if (result.ImmediateResult is not null)
+            {
+                _lastResult = result.ImmediateResult;
+                lastResult = result.ImmediateResult;
+                WriteResult(resultsDir, Path.GetFileName(file), result.ImmediateResult);
+            }
             TryDelete(file);
             _applied++;
             appliedThisFrame++;
@@ -66,7 +72,7 @@ public class CommandProcessor
 
     private string _lastResult = "";
 
-    private string ProcessFile(string file)
+    private ProcessResult ProcessFile(string file, string resultsDir)
     {
         try
         {
@@ -74,17 +80,18 @@ public class CommandProcessor
             var root = doc.RootElement;
             var op = GetString(root, "op") ?? "setPinValue";
 
-            return op switch
+            var result = op switch
             {
                 "setPinValue" => SetPinValue(root),
                 "openDocument" => OpenDocument(root),
-                "paste" => Paste(root),
+                "paste" => Paste(root, resultsDir, Path.GetFileName(file)),
                 _ => Err($"unknown op '{op}'"),
             };
+            return result is null ? ProcessResult.Deferred : ProcessResult.Now(result);
         }
         catch (Exception ex)
         {
-            return Err($"{Path.GetFileName(file)}: {ex.Message}");
+            return ProcessResult.Now(Err($"{Path.GetFileName(file)}: {ex.Message}"));
         }
     }
 
@@ -118,17 +125,70 @@ public class CommandProcessor
         return Ok($"opened {p}");
     }
 
-    // SessionNodes.Paste mutates the editor graph. Calling it from a patch Update can
-    // race the graphical editor's render pass and leave the patch view broken with:
-    // "Collection was modified; enumeration operation may not execute."
-    // Keep the op disabled until paste is moved to an editor-command context.
-    private static string Paste(JsonElement root)
+    // Experimental: direct SessionNodes.Paste from this node's Update was observed
+    // to race the graphical editor render pass. This path requires an explicit
+    // opt-in and posts the mutation to the UI synchronization context so it runs
+    // after the current Update call returns. Keep this behind MCP/dev tooling until
+    // repeated in-vvvv testing proves it stable.
+    private static string? Paste(JsonElement root, string resultsDir, string requestFileName)
     {
         var snippet = GetString(root, "snippet");
         if (string.IsNullOrWhiteSpace(snippet)) return Err("missing 'snippet'");
 
-        return Err("paste is disabled: SessionNodes.Paste from CommandProcessor.Update can corrupt the graph editor render state. Use manual clipboard paste or move this operation into a real editor-command context.");
+        if (!GetBool(root, "experimental"))
+            return Err("paste requires experimental=true; this is an opt-in dev path because paste mutates the live editor graph.");
+
+        var context = SynchronizationContext.Current;
+        if (context is null) return Err("no SynchronizationContext available for deferred paste");
+
+        var location = new PointF(GetFloat(root, "x"), GetFloat(root, "y"));
+        var pauseRuntime = GetBool(root, "pauseRuntime");
+        var leaveRuntimePaused = GetBool(root, "leaveRuntimePaused");
+        _pendingPastes++;
+        context.Post(_ =>
+        {
+            string result;
+            var paused = new List<(RuntimeHost Host, RunMode Mode)>();
+            try
+            {
+                if (pauseRuntime)
+                {
+                    var runtime = VLSession.Instance?.UserRuntime
+                        ?? throw new InvalidOperationException("no user runtime available for runtime pause");
+                    if (runtime is not null)
+                    {
+                        var mode = runtime.Mode;
+                        paused.Add((runtime, mode));
+                        runtime.SwitchMode(RunMode.Paused);
+                    }
+                }
+
+                SessionNodes.Paste(snippet!, location);
+                result = Ok($"pasted snippet at {location.X},{location.Y}"
+                    + (pauseRuntime ? leaveRuntimePaused ? " (runtime left paused)" : " (runtime was paused during paste)" : ""));
+            }
+            catch (Exception ex)
+            {
+                result = Err("deferred paste failed: " + ex.Message);
+            }
+            finally
+            {
+                if (pauseRuntime && !leaveRuntimePaused)
+                {
+                    foreach (var (runtime, mode) in paused)
+                    {
+                        try { runtime.SwitchMode(mode); } catch { }
+                    }
+                }
+                _pendingPastes--;
+            }
+            WriteResult(resultsDir, requestFileName, result);
+        }, null);
+
+        return null;
     }
+
+    private static int _pendingPastes;
 
     private static float GetFloat(JsonElement root, string name)
         => root.TryGetProperty(name, out var el) && el.ValueKind == JsonValueKind.Number ? (float)el.GetDouble() : 0f;
@@ -187,6 +247,15 @@ public class CommandProcessor
     private static string? GetString(JsonElement root, string name)
         => root.TryGetProperty(name, out var el) && el.ValueKind == JsonValueKind.String ? el.GetString() : null;
 
+    private static bool GetBool(JsonElement root, string name)
+        => root.TryGetProperty(name, out var el) && el.ValueKind == JsonValueKind.True;
+
     private static string Ok(string msg) => "{\"ok\":true,\"message\":" + JsonSerializer.Serialize(msg) + "}";
     private static string Err(string msg) => "{\"ok\":false,\"error\":" + JsonSerializer.Serialize(msg) + "}";
+
+    private readonly record struct ProcessResult(string? ImmediateResult)
+    {
+        public static ProcessResult Now(string result) => new(result);
+        public static ProcessResult Deferred => new(null);
+    }
 }

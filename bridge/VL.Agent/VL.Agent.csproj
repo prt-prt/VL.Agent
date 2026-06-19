@@ -29,6 +29,10 @@
       <HintPath>$(VvvvInstall)\VL.Lang.dll</HintPath>
       <Private>false</Private>
     </Reference>
+    <Reference Include="VL.AppServices">
+      <HintPath>$(VvvvInstall)\VL.AppServices.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
     <Reference Include="VL.HDE">
       <HintPath>$(VvvvInstall)\packs\dependencies\VL.HDE.dll</HintPath>
       <Private>false</Private>
