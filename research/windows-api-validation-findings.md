@@ -58,6 +58,23 @@ Two independent paths exist, no hand-rolled `.vl` XML generation required:
 
 So the "internal IR: AddNode/AddPad/SetPin/Connect/Disconnect/AddDependency" module is **already the public model API** — the agent should target it rather than reinvent it.
 
+3. **Live, undo-integrated solution edits** — `VL.Lang.PublicAPI.ISolution` (reached via `IDevSession.Current.CurrentSolution`) is the safest write primitive of all:
+   - `ISolution SetPinValue(nodeId, pin, value)` — immutable, returns the next solution.
+   - `PinGroupBuilder ModifyPinGroup(nodeId, pinGroup, isInput)` — add/remove pins on a group.
+   - `void Confirm(SolutionUpdateKind)` — **commits the accumulated edit through the editor's own undo system.**
+
+   Pattern: `var s = session.CurrentSolution; s.SetPinValue(id, "Value", 42).Confirm(SolutionUpdateKind.X);`. This is observe → propose → `Confirm` with native undo — exactly the transactional model the architecture wanted, already public.
+
+### Access root (how a node/extension reaches all of the above)
+
+- `VL.Core.AppHost.Current` / `.Global` / `.CurrentOrGlobal` → `.Services : ServiceRegistry` → `GetService(type)`. `ServiceRegistry` also has static `Current`/`Global`.
+- `VL.Lang.PublicAPI.IDevSession.Current` → `CurrentSolution`, `Commands`, document ops.
+- From inside vvvv these are also exposed as **nodes** (`SessionNodes`, the `VL.HDE.API` node), so a bridge can take them as **input pins** instead of resolving them itself — sidestepping any reachability question.
+
+### Live element model (deep introspection of selected/hovered)
+
+`VL.Lang.PublicAPI` exposes `ILiveElement`, `ILiveNodeApplication`, `ILiveLink`, `ILiveProperty`, `ILiveFragment`, `ILiveDataHub`, plus info views `INodeInfo`/`ILinkInfo`/`IElementInfo`/`IDataHubInfo`. `ILiveElement.DataStream : IObservable<object>` gives live per-element values. So selection/hover yields not just IDs but live, observable runtime state.
+
 ### Command/transaction infra (`VL.Core.Commands`)
 
 `Command.Create(Action[, isEnabled])`, `CommandList.Create/Combine/Reserve/TryExecute`, `CommandBinding{Keys,ICommand}` — for binding agent actions to the editor command system + shortcuts.
