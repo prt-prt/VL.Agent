@@ -7,13 +7,15 @@ namespace VlMcp;
 /// <summary>The vvvv-agent tools exposed over MCP.</summary>
 internal static class Tools
 {
-    // Default location the in-vvvv EditorWatcher node writes to. Overridable by the
-    // tool's `path` argument or the VVVV_AGENT_STATE environment variable.
+    // Convention shared with the in-vvvv EditorWatcher node: <project>/.agent/editor-state.json.
+    // The server's working directory is the project (Claude Code launches it there), so no
+    // path config is needed. Overridable by the tool's `path` arg or $VVVV_AGENT_STATE.
+    private const string AgentDir = ".agent";
+    private const string StateFileName = "editor-state.json";
+
     private static string DefaultStatePath =>
         Environment.GetEnvironmentVariable("VVVV_AGENT_STATE")
-        ?? Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "vvvv-agent", "editor-state.json");
+        ?? Path.Combine(Directory.GetCurrentDirectory(), AgentDir, StateFileName);
 
     public static JsonNode List() => new JsonObject
     {
@@ -34,10 +36,9 @@ internal static class Tools
                         ["projectPath"] = new JsonObject
                         {
                             ["type"] = "string",
-                            ["description"] = "Absolute path to the vvvv project directory to index.",
+                            ["description"] = "Project directory to index. Defaults to the working directory.",
                         },
                     },
-                    ["required"] = new JsonArray { "projectPath" },
                 },
             },
             new JsonObject
@@ -84,8 +85,7 @@ internal static class Tools
     private static string IndexProject(JsonNode? args)
     {
         var path = (string?)args?["projectPath"];
-        if (string.IsNullOrWhiteSpace(path))
-            throw new RpcException(-32602, "projectPath is required");
+        if (string.IsNullOrWhiteSpace(path)) path = Directory.GetCurrentDirectory();
         if (!Directory.Exists(path))
             return $"error: project directory not found: {path}";
 

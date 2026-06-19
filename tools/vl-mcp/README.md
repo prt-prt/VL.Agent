@@ -26,33 +26,36 @@ build text on stdout, which corrupts the JSON-RPC stream.
 
 ## Wire it into Claude Code
 
-Either run `claude mcp add` or drop a `.mcp.json` in your vvvv project (see
-`mcp.example.json` here). Example:
+Run `claude mcp add` or drop a `.mcp.json` in your vvvv project (see
+`mcp.example.json` here) — just point it at the built exe:
 
 ```json
 {
   "mcpServers": {
     "vvvv-agent": {
-      "command": "C:\\Users\\3e8\\projects\\agentic-vl\\tools\\vl-mcp\\bin\\Release\\net10.0\\vl-mcp.exe",
-      "env": {
-        "VVVV_AGENT_STATE": "C:\\Users\\3e8\\AppData\\Local\\vvvv-agent\\editor-state.json"
-      }
+      "command": "C:\\Users\\3e8\\projects\\agentic-vl\\tools\\vl-mcp\\bin\\Release\\net10.0\\vl-mcp.exe"
     }
   }
 }
 ```
 
-Then in Claude Code: `vvvv_index_project` with your project path, and `vvvv_editor_state`
-to see what you currently have selected/open in vvvv.
+**No paths to configure.** Launch Claude Code in your vvvv project directory; the
+server defaults to indexing that directory and reading `.agent/editor-state.json`
+inside it — the same convention the `EditorWatcher` node writes to. (`$VVVV_AGENT_STATE`
+or per-call `path`/`projectPath` args still override if you need them.)
 
-## The live-state loop
+Then in Claude Code: `vvvv_index_project` (defaults to your project) and
+`vvvv_editor_state` to see what you currently have selected/open in vvvv.
+
+## The live-state loop (zero config)
 
 1. In vvvv, drop a **`EditorWatcher`** node (category `Agent`, from `bridge/VL.Agent`)
-   and set its `path` to the same file as `VVVV_AGENT_STATE` above.
-2. It rewrites the snapshot whenever selection / messages / open documents change.
-3. Claude Code calls `vvvv_editor_state` and sees your live editor context —
-   including the `ElementId`/`MergeId` of selected nodes, which the (upcoming) write
-   tools will use to edit pins.
+   into your project's patch and leave its `path` empty.
+2. It auto-writes to `<project>/.agent/editor-state.json` whenever selection /
+   messages / open documents change.
+3. Claude Code, launched in that same project, calls `vvvv_editor_state` and sees your
+   live editor context — including each selected element's `ElementId`/`MergeId`
+   (the latter is what the upcoming write tools use to edit pins).
 
 ## Protocol notes
 

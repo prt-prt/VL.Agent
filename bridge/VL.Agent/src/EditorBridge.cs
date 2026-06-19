@@ -40,6 +40,8 @@ public static class EditorBridge
             var snapshot = new EditorSnapshot(documents, selection, messages);
 
             var json = JsonSerializer.Serialize(snapshot, SnapshotJson);
+            var dir = Path.GetDirectoryName(path);
+            if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
             File.WriteAllText(path, json);
 
             return $"ok: {documents.Length} docs, {selection.Length} selected, "

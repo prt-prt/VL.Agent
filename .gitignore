@@ -13,3 +13,4 @@ testbed/
 /output.json
 /test.vl
 editor-state.json
+.agent/

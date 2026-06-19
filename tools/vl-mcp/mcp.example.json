@@ -2,10 +2,7 @@
   "mcpServers": {
     "vvvv-agent": {
       "command": "C:\\Users\\3e8\\projects\\agentic-vl\\tools\\vl-mcp\\bin\\Release\\net10.0\\vl-mcp.exe",
-      "args": [],
-      "env": {
-        "VVVV_AGENT_STATE": "C:\\Users\\3e8\\AppData\\Local\\vvvv-agent\\editor-state.json"
-      }
+      "args": []
     }
   }
 }

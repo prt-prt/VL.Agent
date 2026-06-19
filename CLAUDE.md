@@ -39,6 +39,11 @@ Both are static .NET 10 CLIs that run **no vvvv code**. See `tools/README.md`.
 with each selected element's `ElementId`/`MergeId` (the latter is what
 `ISolution.SetPinValue` takes — the basis for the upcoming write path).
 
+**Path convention (zero config):** the snapshot lives at `<project>/.agent/editor-state.json`.
+The `EditorWatcher` node derives `<project>` from its own document; the MCP server uses its
+working directory. So when you launch Claude Code in your vvvv project, both ends agree
+with no path settings. Override via the node's `path` pin or `$VVVV_AGENT_STATE`.
+
 ## Testbed — `testbed/dodecahedron-vl/`
 
 A real vvvv project (22 `.vl`, `Spatial-AV.vl` entry point), cloned with its

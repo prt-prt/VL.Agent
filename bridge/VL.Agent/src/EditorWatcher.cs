@@ -1,3 +1,4 @@
+using VL.Core;
 using VL.Core.Import;
 using VL.HDE;
 
@@ -6,32 +7,65 @@ namespace VL.Agent;
 /// <summary>
 /// Continuously mirrors live editor state to a file for an external coding agent.
 /// Drop one of these into a running patch (ideally an <c>.HDE.vl</c> editor extension)
-/// and point <c>path</c> at a well-known location the agent reads — it rewrites the
-/// snapshot only when the editor state actually changes (selection / messages /
-/// loaded documents), so it is cheap to leave running.
+/// — it rewrites the snapshot only when editor state actually changes (selection /
+/// messages / loaded documents), so it is cheap to leave running.
+/// <para>
+/// By default it writes to <c>&lt;projectDir&gt;/.agent/editor-state.json</c>, where the
+/// project is the directory of the patch this node lives in — matching where the MCP
+/// server looks. Set the <c>path</c> pin to override.
+/// </para>
 /// </summary>
 [ProcessNode(Name = "EditorWatcher")]
 public class EditorWatcher
 {
+    private readonly NodeContext _context;
     private int _lastSignature;
     private string? _lastPath;
 
+    public EditorWatcher(NodeContext context) => _context = context;
+
     /// <summary>
-    /// Writes a fresh snapshot to <paramref name="path"/> whenever editor state changes.
+    /// Writes a fresh snapshot whenever editor state changes.
     /// </summary>
+    /// <param name="resolvedPath">The path actually written to (auto-derived if path is empty).</param>
     /// <param name="status">Last action: idle / unchanged / the write result.</param>
-    /// <param name="path">Output file the agent reads (e.g. an MCP-configured path).</param>
+    /// <param name="path">Override output path. Leave empty to use &lt;project&gt;/.agent/editor-state.json.</param>
     /// <param name="enabled">Set false to pause mirroring.</param>
-    public void Update(out string status, string path = "", bool enabled = true)
+    public void Update(out string resolvedPath, out string status, string path = "", bool enabled = true)
     {
-        if (!enabled || string.IsNullOrWhiteSpace(path)) { status = "idle"; return; }
+        resolvedPath = string.IsNullOrWhiteSpace(path) ? ResolveDefaultPath() ?? "" : path;
+
+        if (!enabled) { status = "paused"; return; }
+        if (string.IsNullOrWhiteSpace(resolvedPath))
+        {
+            status = "could not resolve project dir — set the path pin";
+            return;
+        }
 
         var signature = ComputeSignature();
-        if (signature == _lastSignature && path == _lastPath) { status = "unchanged"; return; }
+        if (signature == _lastSignature && resolvedPath == _lastPath) { status = "unchanged"; return; }
 
         _lastSignature = signature;
-        _lastPath = path;
-        status = EditorBridge.WriteEditorSnapshot(path);
+        _lastPath = resolvedPath;
+        status = EditorBridge.WriteEditorSnapshot(resolvedPath);
+    }
+
+    /// <summary>
+    /// Derive the default snapshot path from the document this node lives in, placing
+    /// it under that project's <c>.agent</c> dir.
+    /// </summary>
+    private string? ResolveDefaultPath()
+    {
+        try
+        {
+            var stack = _context.Path.Stack;
+            if (stack.IsEmpty) return null;
+            var docPath = _context.AppHost.GetDocumentPath(stack.Peek());
+            if (string.IsNullOrEmpty(docPath)) return null;
+            var dir = Path.GetDirectoryName(docPath);
+            return string.IsNullOrEmpty(dir) ? null : AgentConvention.StatePathFor(dir);
+        }
+        catch { return null; }
     }
 
     // Cheap change-detection: hash selection identities, document paths/dirty-flags,

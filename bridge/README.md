@@ -28,10 +28,12 @@ did not mark static members; this only surfaced when the compiler rejected
 - **`WriteEditorSnapshot(path) → status`** — writes a JSON snapshot of loaded
   documents (path/name/changed/readonly), the current selection, and the latest
   compiler messages (severity/what/why) to `path`. One-shot; trigger from a patch.
-- **`EditorWatcher`** (`[ProcessNode]`, pins: `path`, `enabled` → `status`) — the same
-  snapshot, but rewritten automatically whenever editor state changes (selection /
-  messages / open documents). Drop it in a running patch / `.HDE.vl` and point `path`
-  at the file the MCP server reads (`$VVVV_AGENT_STATE`) for a live agent view.
+- **`EditorWatcher`** (`[ProcessNode]`, pins: `path`, `enabled` → `resolvedPath`, `status`)
+  — the same snapshot, rewritten automatically whenever editor state changes
+  (selection / messages / open documents). **Leave `path` empty**: it auto-derives
+  `<project>/.agent/editor-state.json` from the document this node lives in (via
+  `NodeContext` → `AppHost.GetDocumentPath`), matching where the MCP server looks. Set
+  `path` only to override.
 
 Selection entries are resolved through `ILiveElement` into structured data:
 `ElementId` (stable base62 id), `MergeId` (the `uint` `ISolution.SetPinValue` takes),
