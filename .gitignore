@@ -8,3 +8,8 @@ obj/
 
 # Local testbed clone (detached from origin, not tracked here)
 testbed/
+
+# Local vvvv bridge test scratch (kept on disk, not tracked)
+/output.json
+/test.vl
+editor-state.json
