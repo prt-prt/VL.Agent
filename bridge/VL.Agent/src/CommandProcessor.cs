@@ -77,6 +77,8 @@ public class CommandProcessor
             return op switch
             {
                 "setPinValue" => SetPinValue(root),
+                "openDocument" => OpenDocument(root),
+                "paste" => Paste(root),
                 _ => Err($"unknown op '{op}'"),
             };
         }
@@ -105,6 +107,32 @@ public class CommandProcessor
         solution.SetPinValue(uid, pin!, value).Confirm(SolutionUpdateKind.Default);
         return Ok($"set {pin}={value} on {uidStr}");
     }
+
+    private static string OpenDocument(JsonElement root)
+    {
+        var p = GetString(root, "path");
+        if (string.IsNullOrWhiteSpace(p)) return Err("missing 'path'");
+        if (!File.Exists(p)) return Err($"file not found: {p}");
+
+        SessionNodes.OpenDocument(VL.Lib.IO.Path.FilePath(p));
+        return Ok($"opened {p}");
+    }
+
+    // Insert a serialized model snippet (vvvv clipboard format) into the active patch
+    // at <x,y>. Undo-integrated, like a manual paste.
+    private static string Paste(JsonElement root)
+    {
+        var snippet = GetString(root, "snippet");
+        if (string.IsNullOrWhiteSpace(snippet)) return Err("missing 'snippet'");
+        var x = GetFloat(root, "x");
+        var y = GetFloat(root, "y");
+
+        SessionNodes.Paste(snippet, new System.Drawing.PointF(x, y));
+        return Ok($"pasted snippet ({snippet!.Length} chars) at {x},{y}");
+    }
+
+    private static float GetFloat(JsonElement root, string name)
+        => root.TryGetProperty(name, out var el) && el.ValueKind == JsonValueKind.Number ? (float)el.GetDouble() : 0f;
 
     /// <summary>Coerce a JSON value to the CLR type vvvv expects for the pin.</summary>
     private static object? Coerce(JsonElement v, string? type)

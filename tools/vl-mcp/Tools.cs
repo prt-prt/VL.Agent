@@ -100,6 +100,29 @@ internal static class Tools
                     ["required"] = new JsonArray { "uniqueId", "pin", "value" },
                 },
             },
+            new JsonObject
+            {
+                ["name"] = "vvvv_paste",
+                ["description"] =
+                    "Insert nodes into the currently-focused vvvv patch by pasting a model snippet "
+                  + "(vvvv clipboard XML) at a location, undo-integrated. Use this to ADD nodes to the "
+                  + "open patch. The vvvv-side CommandProcessor node must be running.",
+                ["inputSchema"] = new JsonObject
+                {
+                    ["type"] = "object",
+                    ["properties"] = new JsonObject
+                    {
+                        ["snippet"] = new JsonObject
+                        {
+                            ["type"] = "string",
+                            ["description"] = "The model snippet (vvvv clipboard format) to paste.",
+                        },
+                        ["x"] = new JsonObject { ["type"] = "number", ["description"] = "Paste X location (default 0)." },
+                        ["y"] = new JsonObject { ["type"] = "number", ["description"] = "Paste Y location (default 0)." },
+                    },
+                    ["required"] = new JsonArray { "snippet" },
+                },
+            },
         },
     };
 
