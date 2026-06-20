@@ -41,6 +41,7 @@ The index includes:
 - document IDs, language versions, and format versions
 - definitions and dependencies
 - node/pad/link/canvas/pin counts
+- per-document `Graph` data with nodes, pads, pins, and resolved link endpoints
 - document dependency graph
 - package version drift
 - missing document dependencies
@@ -48,6 +49,23 @@ The index includes:
 - parse failures
 
 The indexing logic is available as `VlMap.Indexer.Build`.
+
+## `vl-view`
+
+Self-contained browser viewer for `vl-map` JSON. It has no build step or CDN
+dependency: serve `tools/vl-view/` or open the HTML and drop a `vl-map` JSON
+file onto it.
+
+```shell
+python3 -m http.server --directory tools/vl-view 8731
+```
+
+Views:
+
+- Project - documents, packages, referenced libraries, document edges, and
+  package version drift.
+- Patch - node/pad/link dataflow for one `.vl` document, powered by
+  `VlDocumentInfo.Graph`.
 
 ## `vl-mcp`
 
@@ -57,7 +75,8 @@ Tools exposed:
 
 - `vvvv_index_project` - static project index via `vl-map`
 - `vvvv_editor_state` - live editor snapshot written by `EditorWatcher`
-- `vvvv_context_query` - compact read-only slices of the editor snapshot
+- `vvvv_context_query` - compact read-only slices of the editor snapshot and
+  static `vl-map` graph (`projectGraph`, `patchGraph`, `nodeContext`)
 - `vvvv_set_pin_value` - narrow undo-integrated pin edit through `CommandProcessor`
 - `vvvv_apply_graph_transaction` - experimental batch transaction entry point;
   first slice supports `dryRun`, `validate`, and batched `setPin`

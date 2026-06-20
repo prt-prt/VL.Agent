@@ -12,7 +12,7 @@ live editor snapshot written by `VL.Agent`.
 |---|---|---|
 | `vvvv_index_project` | read-only | Indexes a vvvv project directory and returns definitions, dependencies, document graph, version drift, missing document deps, duplicate IDs, and parse failures. |
 | `vvvv_editor_state` | read-only | Reads `.agent/editor-state.json`, which is written by the in-vvvv `EditorWatcher` node. |
-| `vvvv_context_query` | read-only | Returns compact slices of the editor snapshot (`summary`, `documents`, `selection`, `compilerMessages`, or `raw`) so agents can make decisions without pulling the full snapshot by default. |
+| `vvvv_context_query` | read-only | Returns compact live editor slices (`summary`, `documents`, `selection`, `compilerMessages`, or `raw`) and static `vl-map` graph slices (`projectGraph`, `patchGraph`, or `nodeContext`) so agents can make decisions without pulling the full index by default. |
 | `vvvv_set_pin_value` | write | Drops a request for the in-vvvv `CommandProcessor` node to set one input pin value through vvvv's undo-integrated solution API. |
 | `vvvv_apply_graph_transaction` | experimental write | Sends a GraphTransaction batch. First slice supports `dryRun`, `validate`, and batching `setPin` operations into one undo-integrated confirm. Structural graph ops are reported as unsupported until a safe editor mutation path is proven. |
 | `vvvv_paste` | experimental write | Drops a clipboard-style Canvas snippet for deferred paste into the active canvas. Requires `experimental=true`; supports `pauseRuntime` and `leaveRuntimePaused`. |
@@ -25,6 +25,42 @@ For now, `setPin` targets must be written as `<UniqueId>:<PinName>`. A transacti
 with multiple `setPin` ops is accumulated and committed with one `Confirm(...)`.
 Use `dryRun=true` to check target parsing, type coercion, and validation without
 applying the solution. Copyable payloads live in `examples/graph-transactions/`.
+
+### Static Graph Context
+
+`vvvv_context_query` can now expose the parser graph that `vl-map` extracts from
+`.vl` XML. This is the MCP-facing slice of the codebase-memory idea: agents can
+ask for a project graph, a patch-local graph, or inbound/outbound context around
+one node/pad without reparsing XML themselves.
+
+Examples:
+
+```json
+{ "kind": "projectGraph", "projectPath": "C:\\path\\to\\project" }
+```
+
+```json
+{
+  "kind": "patchGraph",
+  "projectPath": "C:\\path\\to\\project",
+  "documentPath": "VL.Agent.HDE.vl",
+  "limit": 100
+}
+```
+
+```json
+{
+  "kind": "nodeContext",
+  "projectPath": "C:\\path\\to\\project",
+  "documentPath": "VL.Agent.HDE.vl",
+  "nodeId": "FbFB0RjCD4sLvbKqmS5ykS"
+}
+```
+
+`documentPath` accepts the exact project-relative path or a unique suffix.
+`nodeContext` works with node ids and pad ids from `patchGraph`. Hidden links are
+omitted by default; pass `includeHidden=true` when inspecting exposed-patch-pin or
+routing links.
 
 ## Resources
 
@@ -122,6 +158,8 @@ defaults where supported.
 3. Call `vvvv_context_query` with `kind=summary` for a compact read of loaded
    documents, selection, compiler messages, and per-element `UniqueId` values.
    Use `vvvv_editor_state` or `kind=raw` only when the full snapshot is needed.
+   Use `kind=projectGraph`, `kind=patchGraph`, or `kind=nodeContext` when the
+   decision depends on static `.vl` node/pad/link structure.
 4. To test a write, also drop a `CommandProcessor` node with `path` empty and call
    `vvvv_set_pin_value`.
 5. To test a transaction, call `vvvv_apply_graph_transaction` with

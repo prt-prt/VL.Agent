@@ -55,9 +55,9 @@ internal static class Tools
             {
                 ["name"] = "vvvv_context_query",
                 ["description"] =
-                    "Read a compact slice of the live vvvv editor snapshot. Prefer this over adding "
-                  + "specialized read tools: use `summary`, `documents`, `selection`, or "
-                  + "`compilerMessages` depending on the decision you need to make.",
+                    "Read a compact context slice for agent decisions. Use live snapshot kinds "
+                  + "`summary`, `documents`, `selection`, `compilerMessages`, or static graph kinds "
+                  + "`projectGraph`, `patchGraph`, `nodeContext` when you need vl-map structure.",
                 ["inputSchema"] = new JsonObject
                 {
                     ["type"] = "object",
@@ -66,13 +66,42 @@ internal static class Tools
                         ["kind"] = new JsonObject
                         {
                             ["type"] = "string",
-                            ["enum"] = new JsonArray { "summary", "documents", "selection", "compilerMessages", "raw" },
+                            ["enum"] = new JsonArray
+                            {
+                                "summary", "documents", "selection", "compilerMessages", "raw",
+                                "projectGraph", "patchGraph", "nodeContext",
+                            },
                             ["description"] = "Snapshot slice to return. Defaults to summary.",
                         },
                         ["path"] = new JsonObject
                         {
                             ["type"] = "string",
                             ["description"] = "Optional override for the snapshot file path.",
+                        },
+                        ["projectPath"] = new JsonObject
+                        {
+                            ["type"] = "string",
+                            ["description"] = "Project directory for static graph queries. Defaults to the working directory.",
+                        },
+                        ["documentPath"] = new JsonObject
+                        {
+                            ["type"] = "string",
+                            ["description"] = "Document path for patchGraph/nodeContext. Exact relative path preferred; suffix matches are accepted.",
+                        },
+                        ["nodeId"] = new JsonObject
+                        {
+                            ["type"] = "string",
+                            ["description"] = "Patch node or pad id for nodeContext.",
+                        },
+                        ["includeHidden"] = new JsonObject
+                        {
+                            ["type"] = "boolean",
+                            ["description"] = "Include hidden graph links in patchGraph/nodeContext. Defaults to false.",
+                        },
+                        ["limit"] = new JsonObject
+                        {
+                            ["type"] = "integer",
+                            ["description"] = "Maximum graph nodes/edges to return for patchGraph. Defaults to 200.",
                         },
                     },
                 },
@@ -251,8 +280,11 @@ internal static class Tools
         if (string.IsNullOrWhiteSpace(path)) path = AgentPaths.DefaultStatePath;
 
         var kind = (string?)args?["kind"] ?? "summary";
+        if (kind is "projectGraph" or "patchGraph" or "nodeContext")
+            return StaticGraphContext(args, kind);
+
         if (kind is not ("summary" or "documents" or "selection" or "compilerMessages" or "raw"))
-            throw new RpcException(-32602, "kind must be summary, documents, selection, compilerMessages, or raw");
+            throw new RpcException(-32602, "kind must be summary, documents, selection, compilerMessages, raw, projectGraph, patchGraph, or nodeContext");
 
         if (!File.Exists(path))
         {
@@ -330,6 +362,287 @@ internal static class Tools
         }
 
         return result.ToJsonString(Json.Indented);
+    }
+
+    private static string StaticGraphContext(JsonNode? args, string kind)
+    {
+        var projectPath = (string?)args?["projectPath"];
+        if (string.IsNullOrWhiteSpace(projectPath)) projectPath = AgentPaths.Root;
+        if (!Directory.Exists(projectPath))
+        {
+            return new JsonObject
+            {
+                ["ok"] = false,
+                ["error"] = "Project directory not found.",
+                ["projectPath"] = projectPath,
+            }.ToJsonString(Json.Indented);
+        }
+
+        var index = Indexer.Build(projectPath);
+        return kind switch
+        {
+            "projectGraph" => ProjectGraphContext(index),
+            "patchGraph" => PatchGraphContext(index, args),
+            "nodeContext" => NodeGraphContext(index, args),
+            _ => throw new RpcException(-32602, "unknown static graph context kind"),
+        };
+    }
+
+    private static string ProjectGraphContext(ProjectIndex index)
+    {
+        var docs = new JsonArray();
+        foreach (var doc in index.Documents.OrderBy(d => d.Path, StringComparer.Ordinal))
+        {
+            docs.Add(new JsonObject
+            {
+                ["path"] = doc.Path,
+                ["definitions"] = DefinitionArray(doc.Definitions),
+                ["stats"] = StatsObject(doc),
+                ["graph"] = GraphStatsObject(doc.Graph),
+                ["warnings"] = StringArray(doc.Warnings),
+                ["parseError"] = doc.ParseError,
+            });
+        }
+
+        var packages = new JsonArray();
+        foreach (var package in index.Packages)
+        {
+            packages.Add(new JsonObject
+            {
+                ["location"] = package.Location,
+                ["versions"] = StringArray(package.Versions),
+                ["documentCount"] = package.DocumentCount,
+                ["versionConflict"] = package.VersionConflict,
+            });
+        }
+
+        var documentEdges = new JsonArray();
+        foreach (var edge in index.DocumentEdges)
+        {
+            documentEdges.Add(new JsonObject
+            {
+                ["from"] = edge.From,
+                ["to"] = edge.To,
+                ["resolved"] = edge.Resolved,
+            });
+        }
+
+        return new JsonObject
+        {
+            ["ok"] = true,
+            ["kind"] = "projectGraph",
+            ["root"] = index.Root,
+            ["files"] = new JsonObject
+            {
+                ["vl"] = index.Files.Vl,
+                ["cs"] = index.Files.Cs,
+                ["csproj"] = index.Files.Csproj,
+                ["sdsl"] = index.Files.Sdsl,
+            },
+            ["documents"] = docs,
+            ["documentEdges"] = documentEdges,
+            ["packages"] = packages,
+            ["warnings"] = StringArray(index.Warnings),
+        }.ToJsonString(Json.Indented);
+    }
+
+    private static string PatchGraphContext(ProjectIndex index, JsonNode? args)
+    {
+        var doc = RequireDocument(index, (string?)args?["documentPath"]);
+        var graph = doc.Graph;
+        if (graph is null)
+            return MissingGraph(doc);
+
+        var includeHidden = (bool?)args?["includeHidden"] == true;
+        var limit = Math.Clamp((int?)args?["limit"] ?? 200, 1, 2000);
+        var vertexIds = new HashSet<string>(graph.Nodes.Select(n => n.Id).Concat(graph.Pads.Select(p => p.Id)), StringComparer.Ordinal);
+
+        var nodes = new JsonArray();
+        foreach (var node in graph.Nodes.Take(limit))
+            nodes.Add(NodeObject(node));
+
+        var pads = new JsonArray();
+        foreach (var pad in graph.Pads.Take(limit))
+            pads.Add(PadObject(pad));
+
+        var links = new JsonArray();
+        foreach (var link in graph.Links.Where(l => includeHidden || !l.Hidden)
+                     .Where(l => l.From is not null && l.To is not null && vertexIds.Contains(l.From) && vertexIds.Contains(l.To))
+                     .Take(limit))
+        {
+            links.Add(LinkObject(link));
+        }
+
+        return new JsonObject
+        {
+            ["ok"] = true,
+            ["kind"] = "patchGraph",
+            ["root"] = index.Root,
+            ["documentPath"] = doc.Path,
+            ["stats"] = GraphStatsObject(graph),
+            ["truncated"] = graph.Nodes.Count > limit || graph.Pads.Count > limit || graph.Links.Count > limit,
+            ["nodes"] = nodes,
+            ["pads"] = pads,
+            ["links"] = links,
+            ["warnings"] = StringArray(doc.Warnings),
+        }.ToJsonString(Json.Indented);
+    }
+
+    private static string NodeGraphContext(ProjectIndex index, JsonNode? args)
+    {
+        var doc = RequireDocument(index, (string?)args?["documentPath"]);
+        var graph = doc.Graph;
+        if (graph is null)
+            return MissingGraph(doc);
+
+        var nodeId = (string?)args?["nodeId"];
+        if (string.IsNullOrWhiteSpace(nodeId))
+            throw new RpcException(-32602, "nodeId is required for nodeContext");
+
+        var includeHidden = (bool?)args?["includeHidden"] == true;
+        var node = graph.Nodes.FirstOrDefault(n => n.Id == nodeId);
+        var pad = graph.Pads.FirstOrDefault(p => p.Id == nodeId);
+        if (node is null && pad is null)
+        {
+            return new JsonObject
+            {
+                ["ok"] = false,
+                ["error"] = "Node or pad id not found in document graph.",
+                ["documentPath"] = doc.Path,
+                ["nodeId"] = nodeId,
+            }.ToJsonString(Json.Indented);
+        }
+
+        var vertices = graph.Nodes.ToDictionary(n => n.Id, n => (JsonObject)NodeObject(n), StringComparer.Ordinal);
+        foreach (var p in graph.Pads)
+            vertices[p.Id] = PadObject(p);
+
+        var inbound = new JsonArray();
+        var outbound = new JsonArray();
+        foreach (var link in graph.Links.Where(l => includeHidden || !l.Hidden))
+        {
+            if (link.To == nodeId && link.From is not null)
+                inbound.Add(NeighborObject(link, link.From, vertices, "from"));
+            if (link.From == nodeId && link.To is not null)
+                outbound.Add(NeighborObject(link, link.To, vertices, "to"));
+        }
+
+        return new JsonObject
+        {
+            ["ok"] = true,
+            ["kind"] = "nodeContext",
+            ["root"] = index.Root,
+            ["documentPath"] = doc.Path,
+            ["target"] = node is not null ? NodeObject(node) : PadObject(pad!),
+            ["inbound"] = inbound,
+            ["outbound"] = outbound,
+            ["warnings"] = StringArray(doc.Warnings),
+        }.ToJsonString(Json.Indented);
+    }
+
+    private static VlDocumentInfo RequireDocument(ProjectIndex index, string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+            throw new RpcException(-32602, "documentPath is required");
+
+        var doc = index.Documents.FirstOrDefault(d => string.Equals(d.Path, path, StringComparison.Ordinal))
+               ?? index.Documents.FirstOrDefault(d => d.Path.EndsWith(path, StringComparison.OrdinalIgnoreCase));
+        if (doc is null)
+            throw new RpcException(-32602, $"documentPath not found in project index: {path}");
+        return doc;
+    }
+
+    private static string MissingGraph(VlDocumentInfo doc) => new JsonObject
+    {
+        ["ok"] = false,
+        ["error"] = "Document has no parsed graph.",
+        ["documentPath"] = doc.Path,
+        ["parseError"] = doc.ParseError,
+        ["warnings"] = StringArray(doc.Warnings),
+    }.ToJsonString(Json.Indented);
+
+    private static JsonObject StatsObject(VlDocumentInfo doc) => new()
+    {
+        ["nodes"] = doc.Stats.Nodes,
+        ["pads"] = doc.Stats.Pads,
+        ["links"] = doc.Stats.Links,
+        ["canvases"] = doc.Stats.Canvases,
+        ["pins"] = doc.Stats.Pins,
+    };
+
+    private static JsonObject GraphStatsObject(PatchGraph? graph) => new()
+    {
+        ["nodes"] = graph?.Nodes.Count ?? 0,
+        ["pads"] = graph?.Pads.Count ?? 0,
+        ["links"] = graph?.Links.Count ?? 0,
+    };
+
+    private static JsonObject NodeObject(PatchNode node)
+    {
+        var pins = new JsonArray();
+        foreach (var pin in node.Pins)
+        {
+            pins.Add(new JsonObject
+            {
+                ["id"] = pin.Id,
+                ["name"] = pin.Name,
+                ["kind"] = pin.Kind,
+            });
+        }
+
+        return new JsonObject
+        {
+            ["id"] = node.Id,
+            ["kind"] = "node",
+            ["name"] = node.Name,
+            ["category"] = node.Category,
+            ["dependency"] = node.Dependency,
+            ["bounds"] = node.Bounds,
+            ["pins"] = pins,
+        };
+    }
+
+    private static JsonObject PadObject(PatchPad pad) => new()
+    {
+        ["id"] = pad.Id,
+        ["kind"] = "pad",
+        ["comment"] = pad.Comment,
+        ["value"] = pad.Value,
+        ["type"] = pad.Type,
+        ["bounds"] = pad.Bounds,
+    };
+
+    private static JsonObject LinkObject(PatchLink link) => new()
+    {
+        ["id"] = link.Id,
+        ["from"] = link.From,
+        ["to"] = link.To,
+        ["fromPin"] = link.FromPin,
+        ["toPin"] = link.ToPin,
+        ["hidden"] = link.Hidden,
+    };
+
+    private static JsonObject NeighborObject(PatchLink link, string neighborId, Dictionary<string, JsonObject> vertices, string direction) => new()
+    {
+        ["direction"] = direction,
+        ["link"] = LinkObject(link),
+        ["neighbor"] = vertices.TryGetValue(neighborId, out var vertex) ? vertex.DeepClone() : new JsonObject { ["id"] = neighborId, ["kind"] = "unresolved" },
+    };
+
+    private static JsonArray StringArray(IEnumerable<string> values)
+    {
+        var result = new JsonArray();
+        foreach (var value in values)
+            result.Add(value);
+        return result;
+    }
+
+    private static JsonArray DefinitionArray(IEnumerable<Definition> definitions)
+    {
+        var result = new JsonArray();
+        foreach (var definition in definitions)
+            result.Add($"{definition.Name} ({definition.Kind})");
+        return result;
     }
 
     // Drop a request file the in-vvvv CommandProcessor picks up, then poll for its result.

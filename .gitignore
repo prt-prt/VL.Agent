@@ -12,6 +12,12 @@ obj/
 # Local testbed clone (detached from origin, not tracked here)
 testbed/
 
+# Local validation corpora / external project clones
+test-projects/
+
+# Generated codebase-memory graph artifacts
+.codebase-memory/
+
 # Local vvvv bridge test scratch (kept on disk, not tracked)
 /output.json
 /test.vl
