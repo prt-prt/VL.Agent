@@ -41,10 +41,19 @@ Current baseline:
 - [ ] Run `tools/list` and confirm these tools are listed:
   - `vvvv_index_project`
   - `vvvv_editor_state`
+  - `vvvv_context_query`
   - `vvvv_set_pin_value`
   - `vvvv_apply_graph_transaction`
   - `vvvv_paste`
+- [ ] Run `resources/list` and confirm these resources are listed:
+  - `agentic-vl://schema/graph-transaction`
+  - `agentic-vl://docs/session-context`
+  - `agentic-vl://docs/windows-testing`
+  - `agentic-vl://docs/graph-transaction-protocol`
+  - `agentic-vl://editor/state`
 - [ ] Run `vvvv_editor_state` and confirm snapshot freshness is reasonable.
+- [ ] Run `vvvv_context_query` with `kind=summary` and confirm compact counts,
+  selection, and compiler messages match the raw snapshot.
 - [ ] Select a node/pad in vvvv and confirm `Selection[0].UniqueId` appears.
 - [ ] Confirm compiler messages appear in the snapshot when a patch has an error.
 

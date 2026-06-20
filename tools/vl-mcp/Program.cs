@@ -67,6 +67,8 @@ return 0;
 JsonNode Dispatch(string? method, JsonNode? @params) => method switch
 {
     "initialize" => Initialize(@params),
+    "resources/list" => Resources.List(),
+    "resources/read" => Resources.Read(@params),
     "tools/list" => Tools.List(),
     "tools/call" => Tools.Call(@params),
     "ping" => new JsonObject(),
@@ -81,7 +83,11 @@ JsonNode Initialize(JsonNode? @params)
     return new JsonObject
     {
         ["protocolVersion"] = protocol,
-        ["capabilities"] = new JsonObject { ["tools"] = new JsonObject() },
+        ["capabilities"] = new JsonObject
+        {
+            ["tools"] = new JsonObject(),
+            ["resources"] = new JsonObject(),
+        },
         ["serverInfo"] = new JsonObject { ["name"] = "vl-mcp", ["version"] = "0.1.0" },
     };
 }

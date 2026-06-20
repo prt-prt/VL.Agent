@@ -7,19 +7,6 @@ namespace VlMcp;
 /// <summary>The vvvv-agent tools exposed over MCP.</summary>
 internal static class Tools
 {
-    // Convention shared with the in-vvvv EditorWatcher node: <project>/.agent/editor-state.json.
-    // The server's working directory is the project (Claude Code launches it there), so no
-    // path config is needed. Overridable by the tool's `path` arg or $VVVV_AGENT_STATE.
-    private const string AgentDir = ".agent";
-    private const string StateFileName = "editor-state.json";
-
-    private static string DefaultStatePath =>
-        Environment.GetEnvironmentVariable("VVVV_AGENT_STATE")
-        ?? Path.Combine(Directory.GetCurrentDirectory(), AgentDir, StateFileName);
-
-    private static string DefaultAgentDir =>
-        Path.Combine(Directory.GetCurrentDirectory(), AgentDir);
-
     public static JsonNode List() => new JsonObject
     {
         ["tools"] = new JsonArray
@@ -56,6 +43,32 @@ internal static class Tools
                     ["type"] = "object",
                     ["properties"] = new JsonObject
                     {
+                        ["path"] = new JsonObject
+                        {
+                            ["type"] = "string",
+                            ["description"] = "Optional override for the snapshot file path.",
+                        },
+                    },
+                },
+            },
+            new JsonObject
+            {
+                ["name"] = "vvvv_context_query",
+                ["description"] =
+                    "Read a compact slice of the live vvvv editor snapshot. Prefer this over adding "
+                  + "specialized read tools: use `summary`, `documents`, `selection`, or "
+                  + "`compilerMessages` depending on the decision you need to make.",
+                ["inputSchema"] = new JsonObject
+                {
+                    ["type"] = "object",
+                    ["properties"] = new JsonObject
+                    {
+                        ["kind"] = new JsonObject
+                        {
+                            ["type"] = "string",
+                            ["enum"] = new JsonArray { "summary", "documents", "selection", "compilerMessages", "raw" },
+                            ["description"] = "Snapshot slice to return. Defaults to summary.",
+                        },
                         ["path"] = new JsonObject
                         {
                             ["type"] = "string",
@@ -192,6 +205,7 @@ internal static class Tools
         {
             "vvvv_index_project" => IndexProject(args),
             "vvvv_editor_state" => EditorState(args),
+            "vvvv_context_query" => ContextQuery(args),
             "vvvv_set_pin_value" => SetPinValue(args),
             "vvvv_paste" => Paste(args),
             "vvvv_apply_graph_transaction" => ApplyGraphTransaction(args),
@@ -207,7 +221,7 @@ internal static class Tools
     private static string IndexProject(JsonNode? args)
     {
         var path = (string?)args?["projectPath"];
-        if (string.IsNullOrWhiteSpace(path)) path = Directory.GetCurrentDirectory();
+        if (string.IsNullOrWhiteSpace(path)) path = AgentPaths.Root;
         if (!Directory.Exists(path))
             return $"error: project directory not found: {path}";
 
@@ -218,7 +232,7 @@ internal static class Tools
     private static string EditorState(JsonNode? args)
     {
         var path = (string?)args?["path"];
-        if (string.IsNullOrWhiteSpace(path)) path = DefaultStatePath;
+        if (string.IsNullOrWhiteSpace(path)) path = AgentPaths.DefaultStatePath;
 
         if (!File.Exists(path))
             return $"No editor snapshot at '{path}'. Is the EditorWatcher node running in vvvv, "
@@ -229,6 +243,93 @@ internal static class Tools
         var content = File.ReadAllText(path);
 
         return $"// snapshot path: {path}\n// last updated: {ageSeconds}s ago\n{content}";
+    }
+
+    private static string ContextQuery(JsonNode? args)
+    {
+        var path = (string?)args?["path"];
+        if (string.IsNullOrWhiteSpace(path)) path = AgentPaths.DefaultStatePath;
+
+        var kind = (string?)args?["kind"] ?? "summary";
+        if (kind is not ("summary" or "documents" or "selection" or "compilerMessages" or "raw"))
+            throw new RpcException(-32602, "kind must be summary, documents, selection, compilerMessages, or raw");
+
+        if (!File.Exists(path))
+        {
+            return new JsonObject
+            {
+                ["ok"] = false,
+                ["error"] = "No editor snapshot. Is AgentHost or EditorWatcher running?",
+                ["path"] = path,
+            }.ToJsonString(Json.Indented);
+        }
+
+        JsonNode? snapshot;
+        try
+        {
+            snapshot = JsonNode.Parse(File.ReadAllText(path));
+        }
+        catch (JsonException ex)
+        {
+            return new JsonObject
+            {
+                ["ok"] = false,
+                ["error"] = "Editor snapshot is not valid JSON.",
+                ["path"] = path,
+                ["detail"] = ex.Message,
+            }.ToJsonString(Json.Indented);
+        }
+
+        if (snapshot is null)
+            return new JsonObject { ["ok"] = false, ["error"] = "Editor snapshot is empty.", ["path"] = path }.ToJsonString(Json.Indented);
+
+        var info = new FileInfo(path);
+        var ageSeconds = (int)(DateTime.Now - info.LastWriteTime).TotalSeconds;
+
+        if (kind == "raw")
+            return new JsonObject
+            {
+                ["ok"] = true,
+                ["path"] = path,
+                ["ageSeconds"] = ageSeconds,
+                ["snapshot"] = snapshot.DeepClone(),
+            }.ToJsonString(Json.Indented);
+
+        var documents = SnapshotArray(snapshot, "Documents");
+        var selection = SnapshotArray(snapshot, "Selection");
+        var messages = SnapshotArray(snapshot, "CompilerMessages");
+
+        var result = new JsonObject
+        {
+            ["ok"] = true,
+            ["path"] = path,
+            ["ageSeconds"] = ageSeconds,
+        };
+
+        switch (kind)
+        {
+            case "summary":
+                result["counts"] = new JsonObject
+                {
+                    ["documents"] = documents.Count,
+                    ["selection"] = selection.Count,
+                    ["compilerMessages"] = messages.Count,
+                };
+                result["selection"] = CompactSelection(selection);
+                result["compilerMessages"] = CompactMessages(messages);
+                break;
+            case "documents":
+                result["documents"] = documents.DeepClone();
+                break;
+            case "selection":
+                result["selection"] = selection.DeepClone();
+                break;
+            case "compilerMessages":
+                result["compilerMessages"] = messages.DeepClone();
+                break;
+        }
+
+        return result.ToJsonString(Json.Indented);
     }
 
     // Drop a request file the in-vvvv CommandProcessor picks up, then poll for its result.
@@ -287,9 +388,60 @@ internal static class Tools
         return SubmitRequest(request, (string?)args?["agentDir"]);
     }
 
+    private static JsonArray SnapshotArray(JsonNode snapshot, string property)
+    {
+        if (snapshot[property] is JsonArray array)
+            return array;
+        return [];
+    }
+
+    private static JsonArray CompactSelection(JsonArray selection)
+    {
+        var result = new JsonArray();
+        foreach (var item in selection)
+        {
+            if (item is not JsonObject obj)
+                continue;
+
+            result.Add(new JsonObject
+            {
+                ["type"] = ScalarString(obj, "Type"),
+                ["name"] = ScalarString(obj, "Name"),
+                ["uniqueId"] = ScalarString(obj, "UniqueId"),
+                ["kind"] = ScalarString(obj, "Kind"),
+                ["symbol"] = ScalarString(obj, "Symbol"),
+                ["messages"] = obj["Messages"]?.DeepClone(),
+            });
+        }
+        return result;
+    }
+
+    private static JsonArray CompactMessages(JsonArray messages)
+    {
+        var result = new JsonArray();
+        foreach (var item in messages)
+        {
+            if (item is not JsonObject obj)
+                continue;
+
+            result.Add(new JsonObject
+            {
+                ["severity"] = ScalarString(obj, "Severity"),
+                ["what"] = ScalarString(obj, "What"),
+                ["why"] = ScalarString(obj, "Why"),
+            });
+        }
+        return result;
+    }
+
+    private static string? ScalarString(JsonObject obj, string property) =>
+        obj[property] is JsonValue value && value.TryGetValue<string>(out var text)
+            ? text
+            : null;
+
     private static string SubmitRequest(JsonObject request, string? agentDir)
     {
-        if (string.IsNullOrWhiteSpace(agentDir)) agentDir = DefaultAgentDir;
+        if (string.IsNullOrWhiteSpace(agentDir)) agentDir = AgentPaths.DefaultAgentDir;
 
         var requestsDir = Path.Combine(agentDir, "requests");
         var resultsDir = Path.Combine(agentDir, "results");

@@ -29,6 +29,13 @@ through public vvvv APIs.
    - HDE agent cockpit UI
    - replaceable backend adapter instead of a broad MCP-only surface
 
+## MCP Strategy
+
+MCP is an adapter, not the internal architecture. Keep the tool surface coarse and
+small. Use MCP resources for large read-only context such as schemas, handoff
+docs, test checklists, and live editor snapshots. Use `vvvv_context_query` for
+compact editor-state reads before falling back to raw snapshots.
+
 ## Verified
 
 - Windows, 2026-06-19, vvvv gamma 7.2:
@@ -41,7 +48,8 @@ through public vvvv APIs.
 - macOS, 2026-06-20:
   - .NET SDK 10.0.301 installed at `/Users/philipp/.dotnet`.
   - `vl-mcp` builds.
-  - `tools/smoke-test.sh` passes.
+  - `tools/smoke-test.sh` passes, including MCP resources and
+    `vvvv_context_query` missing-snapshot behavior.
 
 ## Open Windows Checks
 
@@ -51,6 +59,7 @@ Highest priority:
 
 - Build `VL.Agent/VL.Agent.csproj` against the installed vvvv gamma assemblies.
 - Validate `VL.Agent.HDE.vl` as the default host.
+- Validate `vvvv_context_query` against a live editor snapshot.
 - Test `vvvv_apply_graph_transaction` dry-run and batched `setPin`.
 - Confirm batched `setPin` becomes one undo step.
 - Inventory safe APIs for structural ops: `addNode`, `addPad`, `connect`,

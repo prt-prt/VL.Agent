@@ -57,6 +57,7 @@ Tools exposed:
 
 - `vvvv_index_project` - static project index via `vl-map`
 - `vvvv_editor_state` - live editor snapshot written by `EditorWatcher`
+- `vvvv_context_query` - compact read-only slices of the editor snapshot
 - `vvvv_set_pin_value` - narrow undo-integrated pin edit through `CommandProcessor`
 - `vvvv_apply_graph_transaction` - experimental batch transaction entry point;
   first slice supports `dryRun`, `validate`, and batched `setPin`
@@ -89,7 +90,8 @@ DOTNET=/Users/philipp/.dotnet/dotnet tools/smoke-test.sh
 ```
 
 This builds `vl-mcp`, parses the graph transaction schema/examples, and confirms
-the MCP tool list advertises `vvvv_apply_graph_transaction`.
+the MCP tool list advertises `vvvv_apply_graph_transaction` and the MCP resource
+list exposes the graph transaction schema.
 
 Node insertion/paste is only exposed as an opt-in dev experiment. The old direct
 paste path can mutate the editor graph while the patch editor is rendering and
