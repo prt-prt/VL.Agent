@@ -36,7 +36,7 @@
   <h1>vvvv-agent</h1>
   <p class="lead">An expert-facing, text-first agentic development system for understanding, debugging, and safely evolving complex vvvv gamma projects.</p>
   <p><span class="tag">Claude Code / pi style workflow</span><span class="tag">vvvv-native bridges</span><span class="tag">incremental + feasible</span></p>
-</div><div class="footer-note">Generated in repo: deck/vvvv-agent-pitchdeck.html</div></section>
+</div><div class="footer-note">Generated in repo: docs/deck/vvvv-agent-pitchdeck.html</div></section>
 
 <section class="slide" data-num="02"><div class="content">
   <h2>The opportunity</h2>
@@ -141,7 +141,7 @@
   <h2>Evidence from ecosystem</h2>
   <div class="grid">
     <div class="card span6"><h3>Gamma-native hooks</h3><ul><li>`.vl` is XML and can be statically inspected.</li><li>`.HDE.vl` extensions can add commands/windows.</li><li>`VL.Lang` Session nodes expose editor context.</li><li>Public channels provide named reactive state.</li><li>VL.TestFramework supports automated load/compile/run tests.</li></ul></div>
-    <div class="card span6"><h3>Public SDK hints</h3><p>The cloned `vvvv-sdk` is mainly historical vvvv45, not current gamma, but it reinforces useful patterns:</p><ul><li>runtime hosts expose frames/updates/exceptions,</li><li>`.vl` integration is mediated by host/session/factory concepts,</li><li>safe mutation benefits from command/undo semantics.</li></ul></div>
+    <div class="card span6"><h3>Validated API surface</h3><p>Windows validation against gamma 7.2 showed practical hooks for the prototype:</p><ul><li>editor state through `VL.HDE.API`,</li><li>selection and live element metadata,</li><li>undo-integrated pin writes through `CurrentSolution`.</li></ul></div>
   </div>
 </div></section>
 

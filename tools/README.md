@@ -12,7 +12,7 @@ vvvv project.
 
 Metadata-only API surface dumper for a vvvv gamma installation. It uses
 `MetadataLoadContext` to inspect assemblies and was used to produce
-`research/windows-api-validation-findings.md`.
+`docs/research/windows-api-validation-findings.md`.
 
 ```powershell
 cd tools\vl-probe
@@ -58,6 +58,8 @@ Tools exposed:
 - `vvvv_index_project` - static project index via `vl-map`
 - `vvvv_editor_state` - live editor snapshot written by `EditorWatcher`
 - `vvvv_set_pin_value` - narrow undo-integrated pin edit through `CommandProcessor`
+- `vvvv_apply_graph_transaction` - experimental batch transaction entry point;
+  first slice supports `dryRun`, `validate`, and batched `setPin`
 - `vvvv_paste` - experimental dev-only deferred paste, requires `experimental=true`
   and supports runtime pausing when the bridge is hosted through `AgentHost`
 
@@ -80,8 +82,17 @@ For local MCP development, use `tools\vl-mcp\dev.ps1` as the MCP command. It
 rebuilds the `net8.0` dev target before starting the server and keeps build logs
 on stderr.
 
+macOS-safe smoke check:
+
+```shell
+DOTNET=/Users/philipp/.dotnet/dotnet tools/smoke-test.sh
+```
+
+This builds `vl-mcp`, parses the graph transaction schema/examples, and confirms
+the MCP tool list advertises `vvvv_apply_graph_transaction`.
+
 Node insertion/paste is only exposed as an opt-in dev experiment. The old direct
 paste path can mutate the editor graph while the patch editor is rendering and
 destabilize the editor view; the current experiment defers paste onto the UI
-synchronization context. Host the bridge in `bridge/VL.Agent.HDE.vl` so user patch
+synchronization context. Host the bridge in `VL.Agent.HDE.vl` so user patch
 runtime pauses/exceptions do not stop the command processor.

@@ -11,7 +11,7 @@ paste/node insertion; future insertion work needs a safe editor-command context.
 Environment: Windows 11, vvvv gamma **7.2** (`C:\Program Files\vvvv\vvvv_gamma_7.2-win-x64`), .NET SDK 10.0.100.
 Method: metadata-only reflection (`MetadataLoadContext`) over the shipped assemblies — **no vvvv code executed**. Reproducible via `tools/vl-probe`.
 
-> This resolves the standing blocker in `SESSION_CONTEXT.md`: every "must investigate on Windows" item below is now answered against the real, installed API surface rather than guessed.
+> This resolves the standing blocker in `docs/SESSION_CONTEXT.md`: every "must investigate on Windows" item below is now answered against the real, installed API surface rather than guessed.
 
 ## TL;DR
 

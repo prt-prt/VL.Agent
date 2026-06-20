@@ -9,8 +9,6 @@ Goal: propose feasible architectures for an agentic assistant for vvvv gamma aim
 ## Sources used
 
 - vvvv skill corpus: fundamentals, file format, editor extensions, custom nodes, node libraries, channels, troubleshooting, testing.
-- Local clone: `vvvv-sdk/` from `https://github.com/vvvv/vvvv-sdk`.
-  - Important caveat: this repository appears primarily to be the historical vvvv45/public SDK, not current vvvv gamma sources. It still provides useful architectural hints about host/runtime integration, command infrastructure, file factories, and observability.
 
 ## Relevant vvvv facts
 
@@ -23,19 +21,6 @@ Goal: propose feasible architectures for an agentic assistant for vvvv gamma aim
 - Channels (`IChannelHub`, public channels, `[CanBePublished]`) provide app-wide named reactive values.
 - `.HDE.vl` editor extensions can register commands and windows; `VL.Lang` Session nodes can access hovered/selected nodes and pins.
 - VL.TestFramework can load/compile/test `.vl` documents and execute entry points.
-
-### Useful hints from cloned `vvvv-sdk`
-
-- `vvvv45/src/integration/VVVV.VLIntegration/src/RuntimeHost.cs`
-  - Runtime host exposes `Frames`, `Updates`, `Exceptions` observables.
-  - It updates hosted instances on compilation changes and synchronizes pins/state after hot swapping.
-  - It has run modes and frame stepping.
-- `vvvv45/src/integration/VVVV.VLIntegration/src/NodeFactory.cs`
-  - `.vl` files are treated through a file factory that discovers node definitions and creates host instances.
-  - Document load and compilation update are mediated through a session/host.
-- `common/src/core/Core/Commands/Command.cs`
-  - Historical command infrastructure has serializable ADD/REMOVE/SET/RENAME/COMPOUND commands with undo semantics.
-  - Even if gamma APIs differ, a command/diff transaction model is a good pattern for safe agent patch edits.
 
 ## Architectural hypothesis
 

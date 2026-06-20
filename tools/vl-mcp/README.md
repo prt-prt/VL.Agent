@@ -4,7 +4,7 @@ MCP stdio server for `agentic-vl`.
 
 It speaks newline-delimited JSON-RPC 2.0 directly and logs only to stderr so stdout
 stays a clean protocol stream. It reuses `vl-map` for static indexing and reads the
-live editor snapshot written by `bridge/VL.Agent`.
+live editor snapshot written by `VL.Agent`.
 
 ## Tools
 
@@ -13,10 +13,17 @@ live editor snapshot written by `bridge/VL.Agent`.
 | `vvvv_index_project` | read-only | Indexes a vvvv project directory and returns definitions, dependencies, document graph, version drift, missing document deps, duplicate IDs, and parse failures. |
 | `vvvv_editor_state` | read-only | Reads `.agent/editor-state.json`, which is written by the in-vvvv `EditorWatcher` node. |
 | `vvvv_set_pin_value` | write | Drops a request for the in-vvvv `CommandProcessor` node to set one input pin value through vvvv's undo-integrated solution API. |
+| `vvvv_apply_graph_transaction` | experimental write | Sends a GraphTransaction batch. First slice supports `dryRun`, `validate`, and batching `setPin` operations into one undo-integrated confirm. Structural graph ops are reported as unsupported until a safe editor mutation path is proven. |
 | `vvvv_paste` | experimental write | Drops a clipboard-style Canvas snippet for deferred paste into the active canvas. Requires `experimental=true`; supports `pauseRuntime` and `leaveRuntimePaused`. |
 
 `vvvv_set_pin_value` requires a running `CommandProcessor` node in the patch and a
 `UniqueId` from `vvvv_editor_state`.
+
+`vvvv_apply_graph_transaction` uses `schemas/graph-transaction.schema.json`.
+For now, `setPin` targets must be written as `<UniqueId>:<PinName>`. A transaction
+with multiple `setPin` ops is accumulated and committed with one `Confirm(...)`.
+Use `dryRun=true` to check target parsing, type coercion, and validation without
+applying the solution. Copyable payloads live in `examples/graph-transactions/`.
 
 The direct paste path is intentionally not stable. Calling `SessionNodes.Paste`
 from a patch `Update` was tested and can break the graphical patch editor render
@@ -94,15 +101,17 @@ defaults where supported.
 
 ## Live-State Loop
 
-1. In vvvv, reference `bridge/VL.Agent/VL.Agent.csproj`.
-2. Prefer `bridge/VL.Agent.HDE.vl` and its `AgentHost` node so the bridge runs in
+1. In vvvv, reference `VL.Agent/VL.Agent.csproj`.
+2. Prefer `VL.Agent.HDE.vl` and its `AgentHost` node so the bridge runs in
    the editor runtime. Patch-local `EditorWatcher` / `CommandProcessor` nodes are
    only for quick tests.
 3. Call `vvvv_editor_state` from the MCP client to see loaded documents, selection,
    compiler messages, and per-element `UniqueId` values.
 4. To test a write, also drop a `CommandProcessor` node with `path` empty and call
    `vvvv_set_pin_value`.
-5. To test paste, call `vvvv_paste` with a self-contained Canvas snippet,
+5. To test a transaction, call `vvvv_apply_graph_transaction` with
+   `schemaVersion=1`, a label, and one or more `setPin` or `validate` ops.
+6. To test paste, call `vvvv_paste` with a self-contained Canvas snippet,
    coordinates, `experimental=true`, and usually `pauseRuntime=true`. Watch vvvv
    closely; this is not yet a stable editing primitive.
 

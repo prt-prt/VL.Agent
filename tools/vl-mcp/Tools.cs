@@ -152,6 +152,34 @@ internal static class Tools
                     ["required"] = new JsonArray { "snippet", "experimental" },
                 },
             },
+            new JsonObject
+            {
+                ["name"] = "vvvv_apply_graph_transaction",
+                ["description"] =
+                    "EXPERIMENTAL graph transaction entry point. Sends a GraphTransaction batch to "
+                  + "the vvvv-side AgentHost/CommandProcessor. First slice supports dryRun, validate, "
+                  + "and batching setPin operations into one undo-integrated Confirm. Structural ops "
+                  + "such as addNode/connect are reported as unsupported until the safe editor mutation "
+                  + "path is proven.",
+                ["inputSchema"] = new JsonObject
+                {
+                    ["type"] = "object",
+                    ["properties"] = new JsonObject
+                    {
+                        ["transaction"] = new JsonObject
+                        {
+                            ["type"] = "object",
+                            ["description"] = "GraphTransaction object. See schemas/graph-transaction.schema.json.",
+                        },
+                        ["agentDir"] = new JsonObject
+                        {
+                            ["type"] = "string",
+                            ["description"] = "Optional override for the .agent directory.",
+                        },
+                    },
+                    ["required"] = new JsonArray { "transaction" },
+                },
+            },
         },
     };
 
@@ -166,6 +194,7 @@ internal static class Tools
             "vvvv_editor_state" => EditorState(args),
             "vvvv_set_pin_value" => SetPinValue(args),
             "vvvv_paste" => Paste(args),
+            "vvvv_apply_graph_transaction" => ApplyGraphTransaction(args),
             _ => throw new RpcException(-32602, $"unknown tool: {name}"),
         };
 
@@ -240,6 +269,20 @@ internal static class Tools
         if ((double?)args?["y"] is { } y) request["y"] = y;
         if ((bool?)args?["pauseRuntime"] is { } pauseRuntime) request["pauseRuntime"] = pauseRuntime;
         if ((bool?)args?["leaveRuntimePaused"] is { } leaveRuntimePaused) request["leaveRuntimePaused"] = leaveRuntimePaused;
+
+        return SubmitRequest(request, (string?)args?["agentDir"]);
+    }
+
+    private static string ApplyGraphTransaction(JsonNode? args)
+    {
+        if (args?["transaction"] is not JsonObject transaction)
+            throw new RpcException(-32602, "transaction object is required");
+
+        var request = new JsonObject
+        {
+            ["op"] = "graphTransaction",
+            ["transaction"] = transaction.DeepClone(),
+        };
 
         return SubmitRequest(request, (string?)args?["agentDir"]);
     }

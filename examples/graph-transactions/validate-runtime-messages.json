@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "label": "Validate runtime messages",
+  "dryRun": true,
+  "ops": [
+    {
+      "op": "validate",
+      "checks": ["compile", "runtimeMessages"]
+    }
+  ]
+}

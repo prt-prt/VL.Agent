@@ -1,0 +1,209 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-vl.local/schemas/graph-transaction.schema.json",
+  "title": "agentic-vl GraphTransaction",
+  "description": "A batch of vvvv graph operations proposed by an agent and applied by the HDE-side bridge as one logical transaction.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "label", "ops"],
+  "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1
+    },
+    "label": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Human-readable undo/preview label."
+    },
+    "document": {
+      "type": "string",
+      "description": "Optional target document path or document id. Defaults to the active document."
+    },
+    "targetCanvas": {
+      "type": "string",
+      "description": "Optional target canvas/patch id. Defaults to the active canvas."
+    },
+    "validate": {
+      "type": "boolean",
+      "default": true
+    },
+    "selectCreated": {
+      "type": "boolean",
+      "default": true
+    },
+    "dryRun": {
+      "type": "boolean",
+      "default": false,
+      "description": "If true, the bridge validates and previews the transaction without applying it."
+    },
+    "ops": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/op"
+      }
+    }
+  },
+  "$defs": {
+    "idRef": {
+      "type": "string",
+      "minLength": 1,
+      "description": "A concrete vvvv element id, UniqueId, or transaction-local alias."
+    },
+    "bounds": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 4,
+      "items": {
+        "type": "number"
+      },
+      "description": "vvvv bounds as [x, y] or [x, y, width, height]."
+    },
+    "value": {
+      "description": "JSON value to coerce into the target pin or pad type."
+    },
+    "op": {
+      "oneOf": [
+        { "$ref": "#/$defs/addNode" },
+        { "$ref": "#/$defs/addPad" },
+        { "$ref": "#/$defs/connect" },
+        { "$ref": "#/$defs/disconnect" },
+        { "$ref": "#/$defs/setPin" },
+        { "$ref": "#/$defs/setBounds" },
+        { "$ref": "#/$defs/annotate" },
+        { "$ref": "#/$defs/select" },
+        { "$ref": "#/$defs/validate" }
+      ]
+    },
+    "addNode": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["op", "alias", "symbol"],
+      "properties": {
+        "op": { "const": "addNode" },
+        "alias": { "$ref": "#/$defs/idRef" },
+        "symbol": {
+          "type": "string",
+          "description": "Node browser symbol or fully qualified node reference."
+        },
+        "bounds": { "$ref": "#/$defs/bounds" },
+        "pins": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/value" },
+          "description": "Initial input pin values by pin name."
+        }
+      }
+    },
+    "addPad": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["op", "alias", "name", "type"],
+      "properties": {
+        "op": { "const": "addPad" },
+        "alias": { "$ref": "#/$defs/idRef" },
+        "name": { "type": "string" },
+        "type": { "type": "string" },
+        "value": { "$ref": "#/$defs/value" },
+        "bounds": { "$ref": "#/$defs/bounds" },
+        "showValueBox": { "type": "boolean", "default": true }
+      }
+    },
+    "connect": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["op", "from", "to"],
+      "properties": {
+        "op": { "const": "connect" },
+        "from": {
+          "type": "string",
+          "description": "Source endpoint, for example alias.Output or elementId:PinName."
+        },
+        "to": {
+          "type": "string",
+          "description": "Sink endpoint, for example alias.Input or elementId:PinName."
+        }
+      }
+    },
+    "disconnect": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["op"],
+      "properties": {
+        "op": { "const": "disconnect" },
+        "link": { "$ref": "#/$defs/idRef" },
+        "from": { "type": "string" },
+        "to": { "type": "string" }
+      },
+      "anyOf": [
+        { "required": ["link"] },
+        { "required": ["from", "to"] }
+      ]
+    },
+    "setPin": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["op", "target", "value"],
+      "properties": {
+        "op": { "const": "setPin" },
+        "target": {
+          "type": "string",
+          "description": "Endpoint. First implementation supports '<UniqueId>:<PinName>'; alias endpoints are reserved for structural ops."
+        },
+        "value": { "$ref": "#/$defs/value" },
+        "type": {
+          "type": "string",
+          "description": "Optional CLR/vvvv type hint for coercion."
+        }
+      }
+    },
+    "setBounds": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["op", "target", "bounds"],
+      "properties": {
+        "op": { "const": "setBounds" },
+        "target": { "$ref": "#/$defs/idRef" },
+        "bounds": { "$ref": "#/$defs/bounds" }
+      }
+    },
+    "annotate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["op", "text"],
+      "properties": {
+        "op": { "const": "annotate" },
+        "alias": { "$ref": "#/$defs/idRef" },
+        "text": { "type": "string" },
+        "bounds": { "$ref": "#/$defs/bounds" }
+      }
+    },
+    "select": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["op", "targets"],
+      "properties": {
+        "op": { "const": "select" },
+        "targets": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/idRef" }
+        }
+      }
+    },
+    "validate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["op"],
+      "properties": {
+        "op": { "const": "validate" },
+        "checks": {
+          "type": "array",
+          "items": {
+            "enum": ["compile", "links", "selection", "runtimeMessages"]
+          },
+          "default": ["compile", "links"]
+        }
+      }
+    }
+  }
+}

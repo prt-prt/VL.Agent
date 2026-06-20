@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "label": "Apply one set pin",
+  "ops": [
+    {
+      "op": "setPin",
+      "target": "<UniqueId>:Input",
+      "value": 42,
+      "type": "Int32"
+    }
+  ]
+}

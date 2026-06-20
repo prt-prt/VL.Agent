@@ -30,7 +30,7 @@ table{width:100%;border-collapse:collapse;margin:16px 0;color:var(--muted);font-
   <div class="kicker">research report</div>
   <h1>vvvv gamma ecosystem deep dive</h1>
   <p class="lead">A component-level analysis of how vvvv gamma appears to work as a live .NET visual programming ecosystem, with emphasis on files, runtime, editor integration, packages, C# nodes, channels, shaders, testing, and implications for future agentic tooling.</p>
-  <div class="meta"><span class="pill">Generated 2026-06-17</span><span class="pill">Artifact: research/vvvv-ecosystem-deep-dive.html</span><span class="pill">Current host: macOS, no local vvvv execution</span></div>
+  <div class="meta"><span class="pill">Generated 2026-06-17</span><span class="pill">Artifact: docs/research/vvvv-ecosystem-deep-dive.html</span><span class="pill">Current host: macOS, no local vvvv execution</span></div>
 </div></header>
 <main>
 <nav class="toc"><b>Contents</b>
@@ -399,28 +399,12 @@ public async Task MyPatchCompilesAndRuns()
 <tr><td><code>--editable-packages</code></td><td>Load matching packages from source.</td></tr></table>
 </section>
 
-<section id="sdk" class="section">
-<h2>13. Observations from the public <code>vvvv-sdk</code> clone</h2>
-<p>The repository cloned into this project at <code>vvvv-sdk/</code> appears primarily to be historical vvvv45/public SDK code, not current vvvv gamma source. It therefore should not be treated as authoritative for gamma internals. However, it provides useful architectural signals.</p>
-
-<h3>13.1 Runtime host pattern</h3>
-<p><code>vvvv45/src/integration/VVVV.VLIntegration/src/RuntimeHost.cs</code> shows a host that manages runtime instances, frame events, compilation updates, exceptions, run modes, and hot-swap synchronization. This reinforces the idea that a live VL system has observable runtime events: frames, updates, and exceptions.</p>
-
-<h3>13.2 Node factory pattern</h3>
-<p><code>NodeFactory.cs</code> shows <code>.vl</code> integration through a factory that loads documents, discovers node definitions, updates node infos, creates runtime instances, and responds to compilation updates. This matches the broader model of documents being compiled into runtime entry points rather than directly interpreted as static XML.</p>
-
-<h3>13.3 Command pattern</h3>
-<p>The historical core has serializable commands such as ADD, REMOVE, SET, RENAME, and COMPOUND with undo/redo semantics. Even if gamma's current internals differ, this is an excellent model for agentic patch mutation: small typed operations, transaction grouping, undoability, and serialization.</p>
-
-<div class="note gap"><strong>Limit:</strong> because current gamma internals were not available locally, exact current APIs for host/session/compiler/command systems remain unverified.</div>
-</section>
-
 <section id="gaps" class="section">
-<h2>14. Missing information and open research areas</h2>
+<h2>13. Missing information and open research areas</h2>
 <div class="card">
 <h3>Known gaps</h3>
 <ol>
-<li><strong>Current gamma source internals:</strong> the public clone is historical vvvv45. Current gamma compiler/editor/runtime source was not available in this session.</li>
+<li><strong>Current gamma source internals:</strong> current gamma compiler/editor/runtime source was not available in this session.</li>
 <li><strong>VL.Lang Session API inventory:</strong> exact nodes, capabilities, data types, mutation functions, and limitations need inspection inside vvvv.</li>
 <li><strong>Editor command/mutation API:</strong> unclear whether external or HDE extension code can safely perform all operations needed for arbitrary patch edits with undo integration.</li>
 <li><strong>Node browser/symbol resolution:</strong> static XML can identify many references, but full semantic resolution likely requires vvvv's compiler/session.</li>

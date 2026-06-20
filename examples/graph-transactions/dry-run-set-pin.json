@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "label": "Dry run set pin",
+  "dryRun": true,
+  "ops": [
+    {
+      "op": "setPin",
+      "target": "<UniqueId>:Input",
+      "value": 42,
+      "type": "Int32"
+    }
+  ]
+}

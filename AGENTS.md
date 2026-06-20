@@ -7,8 +7,10 @@ live-edit layer.
 ## Ground Truth
 
 - Use the local `vvvv-*` skills for vvvv concepts and file-format details.
-- Use `research/windows-api-validation-findings.md` for API facts validated against
+- Use `docs/research/windows-api-validation-findings.md` for API facts validated against
   vvvv gamma 7.2.
+- Use `docs/WINDOWS_TESTING.md` as the running checklist for anything that needs
+  a Windows vvvv runtime.
 - vvvv-loaded code targets `net8.0-windows`; standalone tools target `net10.0`.
 
 ## Tools
@@ -19,16 +21,18 @@ live-edit layer.
   - `vvvv_index_project`
   - `vvvv_editor_state`
   - `vvvv_set_pin_value`
+  - `vvvv_apply_graph_transaction`
 
 Point MCP clients at the built `vl-mcp.exe`, not `dotnet run`.
 
-## Bridge
+## VL.Agent
 
-`bridge/VL.Agent` runs inside vvvv and provides:
+`VL.Agent` runs inside vvvv and provides:
 
 - `WriteEditorSnapshot`
 - `EditorWatcher`
 - `CommandProcessor`
+- `AgentHost`
 
 Default convention:
 
@@ -39,14 +43,15 @@ Default convention:
 ```
 
 `EditorWatcher` writes live editor state. `CommandProcessor` currently supports
-`setPinValue` requests and rejects `paste` requests.
+`setPinValue`, experimental first-slice `graphTransaction` requests, and
+experimental opt-in `paste` requests.
 
 ## Important Safety Finding
 
 Do not re-enable MCP paste casually.
 
 `SessionNodes.Paste(modelSnippet, location)` exists and the clipboard XML shape is
-documented in `research/vvvv-paste-snippet-format.md`, but calling it from
+documented in `docs/research/vvvv-paste-snippet-format.md`, but calling it from
 `CommandProcessor.Update()` can mutate the editor graph while the Skia patch editor
 is rendering. This caused:
 
@@ -64,5 +69,5 @@ API boundary that is safe relative to graph rendering.
 3. Use `CurrentSolution.*.Confirm(...)` for narrow undo-integrated edits.
 4. Do not hand-edit `.vl` XML unless the change is small, conservative, and backed
    by file-format knowledge.
-5. Keep `README.md`, `SESSION_CONTEXT.md`, and tool-specific READMEs aligned with
-   the actual verified state.
+5. Keep `README.md`, `docs/SESSION_CONTEXT.md`, `docs/WINDOWS_TESTING.md`, and
+   tool-specific READMEs aligned with the actual verified state.

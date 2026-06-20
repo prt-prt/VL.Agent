@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "label": "Unsupported structural op does not partially apply",
+  "ops": [
+    {
+      "op": "setPin",
+      "target": "<UniqueId>:Input",
+      "value": 42,
+      "type": "Int32"
+    },
+    {
+      "op": "addNode",
+      "alias": "later",
+      "symbol": "Primitive.Math.+",
+      "bounds": [300, 200]
+    }
+  ]
+}

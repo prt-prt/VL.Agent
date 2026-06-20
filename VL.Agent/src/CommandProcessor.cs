@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Drawing;
 using VL.Core;
 using VL.Core.Import;
+using VL.HDE;
 using VL.Lang.Platforms;
 using VL.Lang.Symbols;
 using VL.Lang.PublicAPI;
@@ -84,6 +85,7 @@ public class CommandProcessor
             {
                 "setPinValue" => SetPinValue(root),
                 "openDocument" => OpenDocument(root),
+                "graphTransaction" => GraphTransaction(root),
                 "paste" => Paste(root, resultsDir, Path.GetFileName(file)),
                 _ => Err($"unknown op '{op}'"),
             };
@@ -113,6 +115,106 @@ public class CommandProcessor
 
         solution.SetPinValue(uid, pin!, value).Confirm(SolutionUpdateKind.Default);
         return Ok($"set {pin}={value} on {uidStr}");
+    }
+
+    private static string GraphTransaction(JsonElement root)
+    {
+        var tx = root.TryGetProperty("transaction", out var txEl) ? txEl : root;
+        if (!tx.TryGetProperty("schemaVersion", out var versionEl) || versionEl.GetInt32() != 1)
+            return Err("graphTransaction requires schemaVersion=1");
+        var label = GetString(tx, "label");
+        if (string.IsNullOrWhiteSpace(label)) return Err("graphTransaction requires non-empty label");
+        if (!tx.TryGetProperty("ops", out var opsEl) || opsEl.ValueKind != JsonValueKind.Array)
+            return Err("graphTransaction requires ops array");
+
+        var dryRun = GetBool(tx, "dryRun");
+        var solution = SessionNodes.CurrentSolution;
+        var plannedSetPins = new List<(UniqueId Uid, string Pin, object Value)>();
+        var validated = 0;
+        var unsupported = new List<string>();
+        var diagnostics = new List<string>();
+
+        foreach (var opEl in opsEl.EnumerateArray())
+        {
+            var op = GetString(opEl, "op");
+            switch (op)
+            {
+                case "setPin":
+                {
+                    var target = GetString(opEl, "target");
+                    if (!TryParsePinTarget(target, out var uidStr, out var pin))
+                    {
+                        diagnostics.Add($"setPin target must be '<UniqueId>:<PinName>', got '{target}'");
+                        break;
+                    }
+                    if (!UniqueId.TryParse(uidStr, out var uid))
+                    {
+                        diagnostics.Add($"setPin target has unparseable UniqueId '{uidStr}'");
+                        break;
+                    }
+                    if (!opEl.TryGetProperty("value", out var valueEl))
+                    {
+                        diagnostics.Add($"setPin {target}: missing value");
+                        break;
+                    }
+
+                    var value = Coerce(valueEl, GetString(opEl, "type"));
+                    if (value is null)
+                    {
+                        diagnostics.Add($"setPin {target}: could not coerce value");
+                        break;
+                    }
+
+                    plannedSetPins.Add((uid, pin, value));
+                    break;
+                }
+                case "validate":
+                    validated += AddValidationDiagnostics(opEl, diagnostics);
+                    break;
+                case "addNode":
+                case "addPad":
+                case "connect":
+                case "disconnect":
+                case "setBounds":
+                case "annotate":
+                case "select":
+                    unsupported.Add(op ?? "<missing>");
+                    break;
+                default:
+                    diagnostics.Add($"unknown graph op '{op}'");
+                    break;
+            }
+        }
+
+        var shouldValidate = !tx.TryGetProperty("validate", out var validateEl)
+            || validateEl.ValueKind == JsonValueKind.True;
+        if (shouldValidate && !opsEl.EnumerateArray().Any(o => GetString(o, "op") == "validate"))
+            validated += AddDefaultValidationDiagnostics(diagnostics);
+
+        if (!dryRun && plannedSetPins.Count > 0 && solution is null)
+            diagnostics.Add("setPin failed: no current solution");
+
+        var shouldApply = !dryRun && diagnostics.Count == 0 && unsupported.Count == 0 && plannedSetPins.Count > 0;
+        if (shouldApply && solution is not null)
+        {
+            var next = solution;
+            foreach (var (uid, pin, value) in plannedSetPins)
+                next = next.SetPinValue(uid, pin, value);
+            next.Confirm(SolutionUpdateKind.Default);
+        }
+
+        var result = new
+        {
+            ok = diagnostics.Count == 0 && unsupported.Count == 0,
+            dryRun,
+            label,
+            appliedOps = shouldApply ? plannedSetPins.Count : 0,
+            checkedOps = plannedSetPins.Count,
+            validationChecks = validated,
+            unsupported,
+            diagnostics,
+        };
+        return JsonSerializer.Serialize(result);
     }
 
     private static string OpenDocument(JsonElement root)
@@ -192,6 +294,86 @@ public class CommandProcessor
 
     private static float GetFloat(JsonElement root, string name)
         => root.TryGetProperty(name, out var el) && el.ValueKind == JsonValueKind.Number ? (float)el.GetDouble() : 0f;
+
+    private static bool TryParsePinTarget(string? target, out string uniqueId, out string pin)
+    {
+        uniqueId = "";
+        pin = "";
+        if (string.IsNullOrWhiteSpace(target)) return false;
+
+        var i = target.LastIndexOf(':');
+        if (i <= 0 || i == target.Length - 1) return false;
+
+        uniqueId = target[..i].Trim();
+        pin = target[(i + 1)..].Trim();
+        return uniqueId.Length > 0 && pin.Length > 0;
+    }
+
+    private static int AddValidationDiagnostics(JsonElement opEl, List<string> diagnostics)
+    {
+        if (!opEl.TryGetProperty("checks", out var checksEl) || checksEl.ValueKind != JsonValueKind.Array)
+            return AddDefaultValidationDiagnostics(diagnostics);
+
+        var count = 0;
+        foreach (var checkEl in checksEl.EnumerateArray())
+        {
+            if (checkEl.ValueKind != JsonValueKind.String) continue;
+            count++;
+            switch (checkEl.GetString())
+            {
+                case "compile":
+                    AddCompilerDiagnostics(diagnostics);
+                    break;
+                case "runtimeMessages":
+                    AddRuntimeDiagnostics(diagnostics);
+                    break;
+                case "links":
+                case "selection":
+                    // Reserved for the richer graph model. No-op for the first transaction slice.
+                    break;
+                default:
+                    diagnostics.Add($"unknown validation check '{checkEl.GetString()}'");
+                    break;
+            }
+        }
+        return count;
+    }
+
+    private static int AddDefaultValidationDiagnostics(List<string> diagnostics)
+    {
+        AddCompilerDiagnostics(diagnostics);
+        return 1;
+    }
+
+    private static void AddCompilerDiagnostics(List<string> diagnostics)
+    {
+        try
+        {
+            var messages = API.LatestMessagesFromCompiler?.Value;
+            if (messages is null) return;
+            foreach (var m in messages)
+                diagnostics.Add($"compiler:{m.Severity}: {m.What} {m.Why}".Trim());
+        }
+        catch (Exception ex)
+        {
+            diagnostics.Add("compiler validation failed: " + ex.Message);
+        }
+    }
+
+    private static void AddRuntimeDiagnostics(List<string> diagnostics)
+    {
+        try
+        {
+            var messages = API.LatestMessagesFromAllRuntimes?.Value;
+            if (messages is null) return;
+            foreach (var m in messages)
+                diagnostics.Add($"runtime:{m.Severity}: {m.What} {m.Why}".Trim());
+        }
+        catch (Exception ex)
+        {
+            diagnostics.Add("runtime validation failed: " + ex.Message);
+        }
+    }
 
     /// <summary>Coerce a JSON value to the CLR type vvvv expects for the pin.</summary>
     private static object? Coerce(JsonElement v, string? type)

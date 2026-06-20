@@ -1,0 +1,609 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>agentic-vl Agent Cockpit Architecture</title>
+  <style>
+    :root {
+      --paper: #f7f6f2;
+      --ink: #202322;
+      --muted: #66706c;
+      --line: #d8d7cf;
+      --panel: #ffffff;
+      --signal: #007c89;
+      --warm: #c0542f;
+      --leaf: #6b7d35;
+      --violet: #6554a6;
+      --code: #111513;
+      --shadow: 0 18px 45px rgba(27, 34, 31, 0.08);
+      --radius: 8px;
+    }
+
+    * { box-sizing: border-box; }
+
+    html {
+      scroll-behavior: smooth;
+      background: var(--paper);
+    }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      font: 16px/1.55 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        linear-gradient(90deg, rgba(32, 35, 34, 0.035) 1px, transparent 1px),
+        linear-gradient(rgba(32, 35, 34, 0.03) 1px, transparent 1px),
+        var(--paper);
+      background-size: 28px 28px;
+      letter-spacing: 0;
+    }
+
+    a { color: inherit; }
+
+    .shell {
+      width: min(1180px, calc(100vw - 32px));
+      margin: 0 auto;
+    }
+
+    header {
+      min-height: 88vh;
+      display: grid;
+      align-items: end;
+      padding: 48px 0 64px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .kicker {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      color: var(--muted);
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 28px;
+    }
+
+    .pulse {
+      width: 11px;
+      height: 11px;
+      border-radius: 999px;
+      background: var(--signal);
+      box-shadow: 0 0 0 6px rgba(0, 124, 137, 0.12);
+    }
+
+    h1 {
+      max-width: 920px;
+      margin: 0;
+      font-family: ui-serif, Georgia, "Times New Roman", serif;
+      font-size: clamp(48px, 9vw, 118px);
+      line-height: 0.94;
+      font-weight: 500;
+      letter-spacing: 0;
+    }
+
+    .lead {
+      max-width: 760px;
+      margin: 28px 0 0;
+      color: #343a37;
+      font-size: clamp(19px, 2vw, 28px);
+      line-height: 1.28;
+    }
+
+    .hero-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 340px;
+      gap: 42px;
+      align-items: end;
+    }
+
+    .signal-map {
+      min-height: 280px;
+      border-left: 1px solid var(--line);
+      padding-left: 28px;
+      display: grid;
+      align-content: end;
+      gap: 14px;
+    }
+
+    .node-line {
+      display: grid;
+      grid-template-columns: 16px 1fr;
+      gap: 12px;
+      align-items: center;
+      color: var(--muted);
+      font: 13px/1.2 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+
+    .node-line span:first-child {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      border: 2px solid var(--signal);
+      background: var(--paper);
+    }
+
+    .node-line:nth-child(2) span:first-child { border-color: var(--warm); }
+    .node-line:nth-child(3) span:first-child { border-color: var(--leaf); }
+    .node-line:nth-child(4) span:first-child { border-color: var(--violet); }
+
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      backdrop-filter: blur(14px);
+      background: rgba(247, 246, 242, 0.86);
+      border-bottom: 1px solid var(--line);
+    }
+
+    nav .shell {
+      display: flex;
+      gap: 18px;
+      overflow-x: auto;
+      padding: 12px 0;
+      scrollbar-width: none;
+    }
+
+    nav a {
+      flex: 0 0 auto;
+      color: var(--muted);
+      font-size: 13px;
+      text-decoration: none;
+    }
+
+    main {
+      padding: 64px 0 96px;
+    }
+
+    section {
+      padding: 54px 0;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .section-head {
+      display: grid;
+      grid-template-columns: 190px minmax(0, 1fr);
+      gap: 36px;
+      margin-bottom: 32px;
+    }
+
+    .label {
+      color: var(--signal);
+      font: 12px/1.2 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      text-transform: uppercase;
+    }
+
+    h2 {
+      margin: 0;
+      font-family: ui-serif, Georgia, "Times New Roman", serif;
+      font-size: clamp(32px, 4vw, 58px);
+      line-height: 1.02;
+      font-weight: 500;
+    }
+
+    h3 {
+      margin: 0 0 10px;
+      font-size: 17px;
+      line-height: 1.25;
+    }
+
+    p {
+      margin: 0;
+      color: #3f4743;
+    }
+
+    p + p { margin-top: 12px; }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .panel {
+      background: rgba(255, 255, 255, 0.72);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 20px;
+      box-shadow: var(--shadow);
+    }
+
+    .panel p, li {
+      color: #48514d;
+      font-size: 15px;
+    }
+
+    .wide { grid-column: span 2; }
+
+    .architecture {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 12px;
+      align-items: stretch;
+    }
+
+    .layer {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 22px;
+      min-height: 220px;
+      position: relative;
+    }
+
+    .layer::before {
+      content: "";
+      position: absolute;
+      top: 22px;
+      right: -7px;
+      width: 12px;
+      height: 12px;
+      border: 2px solid var(--signal);
+      border-radius: 50%;
+      background: var(--paper);
+      z-index: 1;
+    }
+
+    .layer:last-child::before { display: none; }
+
+    .layer ul, .phase ul, .scenario ul {
+      margin: 12px 0 0;
+      padding-left: 18px;
+    }
+
+    .phase {
+      display: grid;
+      grid-template-columns: 110px minmax(0, 1fr) minmax(260px, 0.45fr);
+      gap: 24px;
+      padding: 24px 0;
+      border-top: 1px solid var(--line);
+    }
+
+    .phase-num {
+      font: 13px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      color: var(--muted);
+    }
+
+    .phase strong {
+      color: var(--ink);
+    }
+
+    .questions {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .questions p {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .scenario-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+    }
+
+    pre {
+      margin: 0;
+      padding: 20px;
+      overflow-x: auto;
+      color: #d7f0eb;
+      background: var(--code);
+      border-radius: var(--radius);
+      border: 1px solid #2a312e;
+      font: 13px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+
+    code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.93em;
+    }
+
+    .callout {
+      display: grid;
+      grid-template-columns: 18px 1fr;
+      gap: 14px;
+      padding: 20px;
+      border: 1px solid color-mix(in srgb, var(--warm) 38%, var(--line));
+      border-radius: var(--radius);
+      background: rgba(192, 84, 47, 0.08);
+    }
+
+    .callout::before {
+      content: "";
+      width: 12px;
+      height: 12px;
+      margin-top: 6px;
+      border-radius: 50%;
+      background: var(--warm);
+    }
+
+    footer {
+      padding: 36px 0 72px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    @media (max-width: 860px) {
+      header { min-height: auto; }
+      .hero-grid,
+      .section-head,
+      .architecture,
+      .scenario-grid,
+      .phase,
+      .grid {
+        grid-template-columns: 1fr;
+      }
+      .wide { grid-column: auto; }
+      .signal-map {
+        min-height: auto;
+        border-left: 0;
+        padding-left: 0;
+        margin-top: 18px;
+      }
+      .layer::before { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="shell hero-grid">
+      <div>
+        <div class="kicker"><span class="pulse"></span><span>agentic-vl / architecture proposal / 2026-06-20</span></div>
+        <h1>Make vvvv an agent-native live environment.</h1>
+        <p class="lead">The next system should not be a chat bolted onto a patcher. It should be an HDE-side cockpit with fast graph transactions, live probes, validation, and a replaceable agent backend.</p>
+      </div>
+      <div class="signal-map" aria-label="System signal map">
+        <div class="node-line"><span></span><code>selected graph -> structured context</code></div>
+        <div class="node-line"><span></span><code>agent plan -> transaction preview</code></div>
+        <div class="node-line"><span></span><code>apply -> validate -> probe</code></div>
+        <div class="node-line"><span></span><code>backend adapter -> swappable runtime</code></div>
+      </div>
+    </div>
+  </header>
+
+  <nav>
+    <div class="shell">
+      <a href="#thesis">Thesis</a>
+      <a href="#bottlenecks">Bottlenecks</a>
+      <a href="#architecture">Architecture</a>
+      <a href="#phases">Phases</a>
+      <a href="#scenarios">Scenarios</a>
+      <a href="#first">First Move</a>
+    </div>
+  </nav>
+
+  <main class="shell">
+    <section id="thesis">
+      <div class="section-head">
+        <div class="label">00 / thesis</div>
+        <h2>The HDE extension should become the agent cockpit.</h2>
+      </div>
+      <div class="grid">
+        <div class="panel wide">
+          <p>The visual nature of vvvv is an advantage, not a problem to hide behind text. The project tab can stay focused on the user patch, while the HDE extension exposes the agent's context, plan, proposed graph operations, probes, and validation results.</p>
+          <p>The backend should remain replaceable. Codex, pi, Claude, or a custom local planner can all sit behind the same narrow local protocol. The vvvv-specific value lives in the HDE control plane.</p>
+        </div>
+        <div class="panel">
+          <h3>North star</h3>
+          <p>A user asks for behavior, the agent proposes a graph transaction, vvvv previews it, applies it as one undoable operation, watches the result for a few frames, and revises.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="bottlenecks">
+      <div class="section-head">
+        <div class="label">01 / bottlenecks</div>
+        <h2>The current loop is correct, but too low-bandwidth.</h2>
+      </div>
+      <div class="grid">
+        <div class="panel">
+          <h3>Mutation is too granular</h3>
+          <p>One request per small edit forces the agent into minutes of node-by-node work. Complex patches need batch graph transactions.</p>
+        </div>
+        <div class="panel">
+          <h3>Observation is too thin</h3>
+          <p>The snapshot has documents, selection, and messages, but not enough pin schemas, live values, node catalog data, thumbnails, or graph deltas.</p>
+        </div>
+        <div class="panel">
+          <h3>Insertion is not proven safe</h3>
+          <p>Paste exists as an experiment, but safe node/link creation needs an editor-context operation path with validation and undo.</p>
+        </div>
+        <div class="panel">
+          <h3>No shared transaction contract</h3>
+          <p>The HDE bridge, MCP server, and future UI need one typed schema for add-node, connect, set-pin, layout, validate, and revert.</p>
+        </div>
+        <div class="panel">
+          <h3>No live feedback loop</h3>
+          <p>The agent needs to subscribe to values, channels, compiler messages, runtime exceptions, and frame metrics after each change.</p>
+        </div>
+        <div class="panel">
+          <h3>Chat is not contextual enough</h3>
+          <p>The chat should be scoped to active document, selected graph, probes, and proposed operations, not just the repository text.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="architecture">
+      <div class="section-head">
+        <div class="label">02 / system shape</div>
+        <h2>Separate the cockpit, bridge core, and agent runtime.</h2>
+      </div>
+      <div class="architecture">
+        <div class="layer">
+          <h3>HDE Agent Cockpit</h3>
+          <p>User-facing extension UI inside vvvv.</p>
+          <ul>
+            <li>Chat and task panel</li>
+            <li>Graph operation preview</li>
+            <li>Live probe panels</li>
+            <li>Validation and error stream</li>
+            <li>Agent activity timeline</li>
+          </ul>
+        </div>
+        <div class="layer">
+          <h3>AgentHost Core</h3>
+          <p>Resident editor-side control plane.</p>
+          <ul>
+            <li>Graph snapshots and deltas</li>
+            <li>Node catalog and pin schemas</li>
+            <li>Batch graph transactions</li>
+            <li>Runtime probes and channels</li>
+            <li>Undo and validation hooks</li>
+          </ul>
+        </div>
+        <div class="layer">
+          <h3>Runtime Adapter</h3>
+          <p>Replaceable reasoning backend.</p>
+          <ul>
+            <li>Codex adapter</li>
+            <li>pi adapter</li>
+            <li>Claude adapter</li>
+            <li>Scripted test adapter</li>
+            <li>Future custom runtime</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="phases">
+      <div class="section-head">
+        <div class="label">03 / phases</div>
+        <h2>Build throughput first, then wrap it in the cockpit.</h2>
+      </div>
+
+      <div class="phase">
+        <div class="phase-num">phase 1</div>
+        <div>
+          <h3>Stabilize the resident bridge</h3>
+          <p>Keep <code>AgentHost</code> as the default and evolve it into a continuous service. Replace file polling with a faster local transport if feasible, while keeping file mode as a fallback.</p>
+        </div>
+        <div class="questions">
+          <p>Open questions: named pipes, TCP, WebSocket, or child process? Can HDE code host this reliably?</p>
+        </div>
+      </div>
+
+      <div class="phase">
+        <div class="phase-num">phase 2</div>
+        <div>
+          <h3>Export a real graph model</h3>
+          <p>Expose nodes, pads, pins, links, bounds, selection, compiler messages, and graph deltas as structured data. Add a searchable node and pin catalog.</p>
+        </div>
+        <div class="questions">
+          <p>Open questions: which API exposes authoritative node browser and pin schema data?</p>
+        </div>
+      </div>
+
+      <div class="phase">
+        <div class="phase-num">phase 3</div>
+        <div>
+          <h3>Implement graph transactions</h3>
+          <p>Support batch ops: add node, add pad, set pin, connect, create region, layout, annotate, validate, and select. Return created IDs and diagnostics.</p>
+        </div>
+        <div class="questions">
+          <p>Open questions: safe editor API for add/connect? One undo step per transaction?</p>
+        </div>
+      </div>
+
+      <div class="phase">
+        <div class="phase-num">phase 4</div>
+        <div>
+          <h3>Add live probes and validation</h3>
+          <p>Read selected values for N frames, subscribe to channels, monitor runtime exceptions, capture compile diagnostics, and validate visual output where feasible.</p>
+        </div>
+        <div class="questions">
+          <p>Open questions: access to non-selected live values? Skia or Stride output capture?</p>
+        </div>
+      </div>
+
+      <div class="phase">
+        <div class="phase-num">phase 5</div>
+        <div>
+          <h3>Build the HDE cockpit UI</h3>
+          <p>Show the chat, current context, proposed transactions, activity timeline, probe panels, and apply/revert controls inside vvvv.</p>
+        </div>
+        <div class="questions">
+          <p>Open questions: native VL/Skia, ImGui, custom window, or embedded web UI?</p>
+        </div>
+      </div>
+
+      <div class="phase">
+        <div class="phase-num">phase 6</div>
+        <div>
+          <h3>Abstract the agent backend</h3>
+          <p>Define a local protocol so the cockpit can talk to Codex, pi, Claude, a test adapter, or a future purpose-built vvvv agent runtime.</p>
+        </div>
+        <div class="questions">
+          <p>Open questions: which external agent protocol is stable enough to wrap first?</p>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-head">
+        <div class="label">04 / transaction</div>
+        <h2>The central primitive is a graph transaction.</h2>
+      </div>
+      <pre><code>{
+  "schemaVersion": 1,
+  "label": "Create OSC controlled Skia visualization",
+  "ops": [
+    { "op": "addNode", "alias": "oscIn", "symbol": "VL.IO.OSC.Receive", "bounds": [120, 120] },
+    { "op": "addPad", "alias": "amplitude", "name": "Amplitude", "type": "Float32", "bounds": [380, 120] },
+    { "op": "connect", "from": "oscIn.Output", "to": "amplitude.Input" },
+    { "op": "setPin", "target": "renderer.Color", "value": "#ffcc00" }
+  ],
+  "validate": true,
+  "selectCreated": true
+}</code></pre>
+    </section>
+
+    <section id="scenarios">
+      <div class="section-head">
+        <div class="label">05 / benchmarks</div>
+        <h2>Use real scenarios as throughput tests.</h2>
+      </div>
+      <div class="scenario-grid">
+        <div class="panel scenario">
+          <h3>Particle system</h3>
+          <p>The agent should scaffold a dense simulation core in C# or Fuse/Stride, then patch the control surface.</p>
+          <ul>
+            <li>Emitter parameters and lifetime</li>
+            <li>Physics and forces</li>
+            <li>Collision settings</li>
+            <li>Rendering mode and debug views</li>
+            <li>Validation: count, bounds, frame time, exceptions</li>
+          </ul>
+        </div>
+        <div class="panel scenario">
+          <h3>Skia plus OSC</h3>
+          <p>The agent should generate OSC routing, typed channels, a Skia renderer patch, and mock input for validation.</p>
+          <ul>
+            <li>OSC address map</li>
+            <li>Channel schema</li>
+            <li>Skia layout and draw layers</li>
+            <li>Mock OSC sender</li>
+            <li>Validation: channel updates and visible output changes</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="first">
+      <div class="section-head">
+        <div class="label">06 / first move</div>
+        <h2>Start with the contract before building the cockpit.</h2>
+      </div>
+      <div class="callout">
+        <p>The first concrete step is a <code>GraphTransaction</code> schema. It lets the MCP tool, HDE bridge, and future UI agree on what an agent is allowed to propose, preview, apply, validate, and undo.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="shell">Generated for <code>agentic-vl</code>. Designed as a local strategy artifact and implementation guide.</div>
+  </footer>
+</body>
+</html>

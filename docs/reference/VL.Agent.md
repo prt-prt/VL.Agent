@@ -1,4 +1,4 @@
-# bridge
+# VL.Agent
 
 Code that runs inside vvvv gamma. This is the live-editor side of `agentic-vl`.
 
@@ -82,6 +82,32 @@ SessionNodes.CurrentSolution
 
 This makes the edit undo-integrated in vvvv.
 
+Experimental batch operation:
+
+```json
+{
+  "op": "graphTransaction",
+  "transaction": {
+    "schemaVersion": 1,
+    "label": "Tune selected parameters",
+    "ops": [
+      {
+        "op": "setPin",
+        "target": "<UniqueId>:Input",
+        "value": 42,
+        "type": "Int32"
+      }
+    ],
+    "validate": true
+  }
+}
+```
+
+The first transaction slice supports `dryRun`, `validate`, and batching `setPin`
+ops into one `Confirm(...)`. Structural ops such as `addNode`, `addPad`, and
+`connect` are reported as unsupported until a safe editor mutation path is
+verified.
+
 `CommandProcessor` can still be dropped into a normal patch for quick tests, but
 that mode is fragile. If the user patch pauses or throws during `Update`, the
 processor stops too and cannot apply recovery commands.
@@ -95,7 +121,7 @@ user document, and keeps processing in the editor runtime.
 Use the included scaffold:
 
 ```text
-bridge/VL.Agent.HDE.vl
+VL.Agent.HDE.vl
 ```
 
 This is the recommended architecture for live writes.
@@ -137,13 +163,13 @@ See `tools/vl-mcp/README.md`.
 ## Build
 
 ```powershell
-dotnet build bridge\VL.Agent\VL.Agent.csproj
+dotnet build VL.Agent\VL.Agent.csproj
 ```
 
 If vvvv is installed elsewhere, override `VvvvInstall`:
 
 ```powershell
-dotnet build bridge\VL.Agent\VL.Agent.csproj -p:VvvvInstall="C:\Program Files\vvvv\vvvv_gamma_7.2-win-x64"
+dotnet build VL.Agent\VL.Agent.csproj -p:VvvvInstall="C:\Program Files\vvvv\vvvv_gamma_7.2-win-x64"
 ```
 
 ## Public API Finding
@@ -155,5 +181,5 @@ compiler messages without wiring those services through user patches.
 For the full API validation, see:
 
 ```text
-research/windows-api-validation-findings.md
+docs/research/windows-api-validation-findings.md
 ```
