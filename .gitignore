@@ -15,6 +15,9 @@ testbed/
 # Local validation corpora / external project clones
 test-projects/
 
+# Generated package tool binaries
+/package/tools/*/
+
 # Generated codebase-memory graph artifacts
 .codebase-memory/
 

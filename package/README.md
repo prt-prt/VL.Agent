@@ -11,3 +11,6 @@ Current intent:
 
 The source of truth for schemas and examples remains the repository root until a
 packaging script copies them here.
+
+Run `deployment/publish-tools.sh` from the repository root to stage the bundled
+tool binaries under `package/tools/<runtime-id>/`.

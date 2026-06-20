@@ -6,6 +6,7 @@ Concise project context:
 - `WINDOWS_TESTING.md` - running checklist for Windows/vvvv validation.
 - `graph-transaction-protocol.md` - current graph transaction contract and next
   implementation steps.
+- `release-checklist.md` - public-alpha NuGet package release gate.
 - `reference/VL.Agent.md` - node/library reference for the vvvv-loaded bridge.
 
 Strategy and research:

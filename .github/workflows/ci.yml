@@ -1,0 +1,33 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    name: tools smoke test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Check packaging scripts
+        run: bash -n deployment/publish-tools.sh
+
+      - name: Build vl-probe
+        run: dotnet build tools/vl-probe/vl-probe.csproj -c Release
+
+      - name: Run smoke test
+        run: DOTNET=dotnet tools/smoke-test.sh

@@ -16,6 +16,7 @@ stay small, transactional, and hosted from the HDE/editor runtime where possible
 - `VL.Agent/` - C# node library loaded into vvvv.
 - `VL.Agent.HDE.vl` - preferred HDE/editor-extension host for `AgentHost`.
 - `deployment/` - draft NuGet package definition for the future community package.
+- `.github/workflows/` - CI and draft package-artifact automation.
 - `help/` - placeholder vvvv Help Browser metadata and future help patches.
 - `package/` - staging area for distribution-only assets such as bundled tool binaries.
 - `schemas/graph-transaction.schema.json` - first graph transaction contract.
@@ -67,6 +68,12 @@ Run the macOS-safe smoke check:
 DOTNET=/Users/philipp/.dotnet/dotnet tools/smoke-test.sh
 ```
 
+Stage the Windows tool bundle for the draft NuGet layout:
+
+```shell
+DOTNET=/Users/philipp/.dotnet/dotnet deployment/publish-tools.sh
+```
+
 ## Live Editor Loop
 
 1. Reference `VL.Agent/VL.Agent.csproj` from a vvvv project.
@@ -102,6 +109,7 @@ context or another safe undo-integrated API boundary.
 - [Project context](docs/SESSION_CONTEXT.md)
 - [Windows testing checklist](docs/WINDOWS_TESTING.md)
 - [Packaging roadmap](docs/packaging-roadmap.md)
+- [Release checklist](docs/release-checklist.md)
 - [VL.Agent reference](docs/reference/VL.Agent.md)
 - [Graph transaction protocol](docs/graph-transaction-protocol.md)
 - [Agent cockpit architecture](docs/agent-cockpit-architecture.html)

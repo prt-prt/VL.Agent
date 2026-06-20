@@ -112,6 +112,15 @@ This builds `vl-mcp`, parses the graph transaction schema/examples, and confirms
 the MCP tool list advertises `vvvv_apply_graph_transaction` and the MCP resource
 list exposes the graph transaction schema.
 
+Stage package tool binaries for the default Windows runtime:
+
+```shell
+DOTNET=/Users/philipp/.dotnet/dotnet deployment/publish-tools.sh
+```
+
+The script publishes `vl-mcp`, `vl-map`, and `vl-probe` into
+`package/tools/win-x64/` for inclusion by `deployment/VL.Agent.nuspec`.
+
 Node insertion/paste is only exposed as an opt-in dev experiment. The old direct
 paste path can mutate the editor graph while the patch editor is rendering and
 destabilize the editor view; the current experiment defers paste onto the UI

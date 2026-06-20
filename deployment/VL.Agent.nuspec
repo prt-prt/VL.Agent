@@ -25,13 +25,13 @@
     <file src="..\VL.Agent.HDE.vl" target="" />
 
     <!-- Runtime bridge source for the current source-reference workflow. -->
-    <file src="..\VL.Agent\**" target="VL.Agent\" exclude="..\VL.Agent\bin\**;..\VL.Agent\obj\**" />
+    <file src="..\VL.Agent\**" target="VL.Agent\" exclude="..\VL.Agent\bin\**;..\VL.Agent\obj\**;..\VL.Agent\**\.DS_Store" />
 
     <!-- Help Browser metadata and future help patches. -->
     <file src="..\help\**" target="help\" />
 
     <!-- Bundled workflow assets. Tool binaries are expected under package\tools once the publish step exists. -->
-    <file src="..\package\**" target="package\" />
+    <file src="..\package\**" target="package\" exclude="..\package\**\.DS_Store" />
     <file src="..\schemas\**" target="schemas\" />
     <file src="..\examples\graph-transactions\**" target="examples\graph-transactions\" />
 

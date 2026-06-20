@@ -1,0 +1,79 @@
+name: package_nuget_artifact
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    name: build draft package
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Setup NuGet
+        uses: nuget/setup-nuget@v2
+
+      - name: Stage bundled tools
+        shell: bash
+        run: RID=win-x64 DOTNET=dotnet deployment/publish-tools.sh
+
+      - name: Pack NuGet
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force artifacts | Out-Null
+          nuget pack deployment\VL.Agent.nuspec -OutputDirectory artifacts -NoDefaultExcludes
+
+      - name: Verify package contents
+        shell: pwsh
+        run: |
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $package = Get-ChildItem artifacts\*.nupkg | Select-Object -First 1
+          if (-not $package) {
+            throw "No package was created."
+          }
+
+          $zip = [System.IO.Compression.ZipFile]::OpenRead($package.FullName)
+          try {
+            $names = $zip.Entries | ForEach-Object { $_.FullName }
+            $required = @(
+              "VL.Agent.HDE.vl",
+              "package/tools/win-x64/vl-mcp.exe",
+              "package/tools/win-x64/vl-map.exe",
+              "package/tools/win-x64/vl-probe.exe",
+              "schemas/graph-transaction.schema.json",
+              "docs/README.md"
+            )
+
+            foreach ($entry in $required) {
+              if ($names -notcontains $entry) {
+                throw "Package is missing $entry"
+              }
+            }
+
+            if ($names | Where-Object { $_ -like "*.DS_Store" }) {
+              throw "Package contains .DS_Store files."
+            }
+          }
+          finally {
+            $zip.Dispose()
+          }
+
+      - name: Upload package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: VL.Agent-nupkg
+          path: artifacts/*.nupkg
+          if-no-files-found: error
