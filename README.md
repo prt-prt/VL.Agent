@@ -15,6 +15,9 @@ stay small, transactional, and hosted from the HDE/editor runtime where possible
 - `tools/vl-probe/` - metadata-only vvvv gamma API dumper.
 - `VL.Agent/` - C# node library loaded into vvvv.
 - `VL.Agent.HDE.vl` - preferred HDE/editor-extension host for `AgentHost`.
+- `deployment/` - draft NuGet package definition for the future community package.
+- `help/` - placeholder vvvv Help Browser metadata and future help patches.
+- `package/` - staging area for distribution-only assets such as bundled tool binaries.
 - `schemas/graph-transaction.schema.json` - first graph transaction contract.
 - `examples/graph-transactions/` - copyable transaction payloads.
 - `docs/` - concise project context, Windows test checklist, reference notes,
@@ -98,6 +101,7 @@ context or another safe undo-integrated API boundary.
 
 - [Project context](docs/SESSION_CONTEXT.md)
 - [Windows testing checklist](docs/WINDOWS_TESTING.md)
+- [Packaging roadmap](docs/packaging-roadmap.md)
 - [VL.Agent reference](docs/reference/VL.Agent.md)
 - [Graph transaction protocol](docs/graph-transaction-protocol.md)
 - [Agent cockpit architecture](docs/agent-cockpit-architecture.html)

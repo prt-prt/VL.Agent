@@ -6,6 +6,9 @@ obj/
 *.user
 *.suo
 
+# Local reference clones and packaging experiments
+.template/
+
 # Local testbed clone (detached from origin, not tracked here)
 testbed/
 

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<Pack>
+
+<!--
+  Placeholder help index for the future VL.Agent package.
+
+  Planned help patches:
+  - Install and run the HDE Agent host
+  - Inspect live editor state
+  - Apply a narrow set-pin edit
+  - Configure an MCP client for the bundled vl-mcp tool
+-->
+
+</Pack>
