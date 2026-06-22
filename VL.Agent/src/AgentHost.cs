@@ -15,6 +15,7 @@ public class AgentHost
 {
     private readonly EditorWatcher _watcher;
     private readonly CommandProcessor _commands;
+    private int _postCommandForceWrites;
 
     public AgentHost(NodeContext context)
     {
@@ -44,6 +45,16 @@ public class AgentHost
 
         _watcher.Update(out _, out watcherStatus, statePath, enabled);
         _commands.Update(out commandStatus, out lastResult, agentDir, enabled);
+        if (commandStatus.StartsWith("applied ", StringComparison.Ordinal))
+        {
+            _watcher.ForceWrite(out _, out watcherStatus, statePath, enabled);
+            _postCommandForceWrites = 2;
+        }
+        else if (_postCommandForceWrites > 0)
+        {
+            _watcher.ForceWrite(out _, out watcherStatus, statePath, enabled);
+            _postCommandForceWrites--;
+        }
     }
 
     private static string? ResolveProjectAgentDir()

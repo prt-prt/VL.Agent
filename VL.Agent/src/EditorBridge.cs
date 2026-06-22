@@ -33,9 +33,12 @@ public static class EditorBridge
                 .Select(DescribeSelected)
                 .ToArray() ?? [];
 
-            var messages = API.LatestMessagesFromCompiler?.Value?
-                .Select(m => new MsgSnapshot(m.Severity.ToString(), m.What, m.Why))
-                .ToArray() ?? [];
+            var messages = EditorMessages.LatestCompiler()
+                .Select(m => new MsgSnapshot(
+                    EditorMessages.MessageSeverity(m),
+                    EditorMessages.MessageWhat(m),
+                    EditorMessages.MessageWhy(m)))
+                .ToArray();
 
             var snapshot = new EditorSnapshot(documents, selection, messages);
 
@@ -85,8 +88,14 @@ public static class EditorBridge
             }
 
             var messages = live.Messages?.Select(m => m.ToString() ?? "").ToArray();
+            var pins = o is ILiveNodeApplication node
+                ? node.Pins.Select(DescribeLivePin).ToArray()
+                : null;
+            var value = o is ILiveDataHub hub
+                ? SafeText(() => hub.Info.Value)
+                : null;
             return new SelSnapshot(type, elementId, mergeId, documentId, uniqueId,
-                info?.ElementName, info?.SymbolInfoString, kind, info?.IsUnused, messages);
+                info?.ElementName, info?.SymbolInfoString, kind, info?.IsUnused, messages, pins, value);
         }
 
         // Fallback for any non-element selection object: record type + text.
@@ -99,8 +108,27 @@ public static class EditorBridge
         DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
     };
 
+    private static PinSnapshot DescribeLivePin(ILiveDataHub pin)
+    {
+        var info = pin.Info;
+        return new PinSnapshot(
+            info.Name,
+            SafeText(() => info.CompiletimeType),
+            info.IsInput,
+            info.IsOptional,
+            pin.IsConnected,
+            SafeText(() => info.Value));
+    }
+
+    private static string? SafeText(Func<object?> read)
+    {
+        try { return read()?.ToString(); }
+        catch { return null; }
+    }
+
     private record EditorSnapshot(DocSnapshot[] Documents, SelSnapshot[] Selection, MsgSnapshot[] CompilerMessages);
     private record DocSnapshot(string? Path, string? Name, bool IsChanged, bool IsReadOnly);
+    private record PinSnapshot(string? Name, string? Type, bool IsInput, bool IsOptional, bool IsConnected, string? Value);
     private record SelSnapshot(
         string Type,
         string? ElementId = null,   // base62 id, stable within the document
@@ -111,6 +139,8 @@ public static class EditorBridge
         string? Symbol = null,
         string? Kind = null,
         bool? IsUnused = null,
-        string[]? Messages = null);
+        string[]? Messages = null,
+        PinSnapshot[]? Pins = null,
+        string? Value = null);
     private record MsgSnapshot(string Severity, string? What, string? Why);
 }

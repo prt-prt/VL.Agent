@@ -1,6 +1,7 @@
 using VL.Core;
 using VL.Core.Import;
 using VL.HDE;
+using VL.Lang.PublicAPI;
 
 namespace VL.Agent;
 
@@ -38,7 +39,7 @@ public class EditorWatcher
         if (!enabled) { status = "paused"; return; }
         if (string.IsNullOrWhiteSpace(resolvedPath))
         {
-            status = "could not resolve project dir — set the path pin";
+            status = "could not resolve project dir - set the path pin";
             return;
         }
 
@@ -46,6 +47,22 @@ public class EditorWatcher
         if (signature == _lastSignature && resolvedPath == _lastPath) { status = "unchanged"; return; }
 
         _lastSignature = signature;
+        _lastPath = resolvedPath;
+        status = EditorBridge.WriteEditorSnapshot(resolvedPath);
+    }
+
+    public void ForceWrite(out string resolvedPath, out string status, string path = "", bool enabled = true)
+    {
+        resolvedPath = string.IsNullOrWhiteSpace(path) ? ResolveDefaultPath() ?? "" : path;
+
+        if (!enabled) { status = "paused"; return; }
+        if (string.IsNullOrWhiteSpace(resolvedPath))
+        {
+            status = "could not resolve project dir — set the path pin";
+            return;
+        }
+
+        _lastSignature = ComputeSignature();
         _lastPath = resolvedPath;
         status = EditorBridge.WriteEditorSnapshot(resolvedPath);
     }
@@ -76,15 +93,43 @@ public class EditorWatcher
 
         var selection = API.CurrentSelection?.Value;
         if (selection is not null)
-            foreach (var o in selection) hc.Add(o?.GetHashCode() ?? 0);
+        {
+            foreach (var o in selection)
+            {
+                hc.Add(o?.GetHashCode() ?? 0);
+                AddLiveValueSignature(ref hc, o);
+            }
+        }
 
         var documents = API.LoadedDocuments;
         if (documents is not null)
             foreach (var d in documents.Values) { hc.Add(d.FilePath); hc.Add(d.IsChanged); }
 
-        var messages = API.LatestMessagesFromCompiler?.Value;
-        if (messages is not null) hc.Add(messages.Count);
+        hc.Add(EditorMessages.LatestCompiler().Count);
 
         return hc.ToHashCode();
+    }
+
+    private static void AddLiveValueSignature(ref HashCode hc, object? item)
+    {
+        try
+        {
+            if (item is ILiveNodeApplication node)
+            {
+                foreach (var pin in node.Pins)
+                {
+                    hc.Add(pin.Info.Name);
+                    hc.Add(pin.Info.Value?.ToString());
+                    hc.Add(pin.IsConnected);
+                }
+            }
+            else if (item is ILiveDataHub hub)
+            {
+                hc.Add(hub.Info.Value?.ToString());
+                hc.Add(hub.Info.DefaultValue?.ToString());
+                hc.Add(hub.IsConnected);
+            }
+        }
+        catch { }
     }
 }

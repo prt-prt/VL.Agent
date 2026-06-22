@@ -15,6 +15,8 @@ namespace VlProbe;
 /// </summary>
 internal static class Program
 {
+    private static bool _includeNonPublic;
+
     // Assemblies most relevant to the editor bridge + transactional patch editing.
     private static readonly string[] DefaultTargets =
     {
@@ -42,6 +44,8 @@ internal static class Program
             ?? Path.Combine(AppContext.BaseDirectory, "probe-output");
         var targets = GetArg(args, "--targets")?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             ?? DefaultTargets;
+        var typeFilter = GetArg(args, "--type-filter");
+        _includeNonPublic = HasArg(args, "--include-non-public");
 
         if (!Directory.Exists(installDir))
         {
@@ -53,6 +57,8 @@ internal static class Program
         Console.WriteLine($"Install: {installDir}");
         Console.WriteLine($"Output:  {outDir}");
         Console.WriteLine($"Targets: {string.Join(", ", targets)}");
+        if (_includeNonPublic) Console.WriteLine("Visibility: all metadata types and members");
+        if (!string.IsNullOrWhiteSpace(typeFilter)) Console.WriteLine($"Type filter: {typeFilter}");
         Console.WriteLine();
 
         // Build the assembly resolution set: every dll under the vvvv install
@@ -120,17 +126,19 @@ internal static class Program
             try { types = asm.GetTypes(); }
             catch (ReflectionTypeLoadException rtle) { types = rtle.Types.Where(t => t is not null).ToArray()!; }
 
-            var publicTypes = types
-                .Where(t => t is not null && (t.IsPublic || t.IsNestedPublic))
+            var selectedTypes = types
+                .Where(t => t is not null && (_includeNonPublic || t.IsPublic || t.IsNestedPublic))
+                .Where(t => string.IsNullOrWhiteSpace(typeFilter) || (t.FullName ?? t.Name).Contains(typeFilter, StringComparison.OrdinalIgnoreCase))
                 .OrderBy(t => t.FullName, StringComparer.Ordinal)
                 .ToArray();
 
-            totalTypes += publicTypes.Length;
-            Console.WriteLine($"  {target}: {publicTypes.Length} public types");
-            full.WriteLine($"## {target} ({publicTypes.Length} public types)");
+            totalTypes += selectedTypes.Length;
+            var visibilityLabel = _includeNonPublic ? "metadata" : "public";
+            Console.WriteLine($"  {target}: {selectedTypes.Length} {visibilityLabel} types");
+            full.WriteLine($"## {target} ({selectedTypes.Length} {visibilityLabel} types)");
             full.WriteLine();
 
-            foreach (var t in publicTypes)
+            foreach (var t in selectedTypes)
             {
                 WriteType(full, t);
                 if (IsInteresting(t))
@@ -158,7 +166,7 @@ internal static class Program
         }
 
         Console.WriteLine();
-        Console.WriteLine($"Total public types: {totalTypes}");
+        Console.WriteLine($"Total types: {totalTypes}");
         Console.WriteLine($"Bridge-relevant types: {interesting.Count}");
         Console.WriteLine($"Wrote: {fullPath}");
         Console.WriteLine($"Wrote: {focusPath}");
@@ -216,7 +224,9 @@ internal static class Program
 
     private static IEnumerable<MemberInfo> SafeMembers(Type t)
     {
-        const BindingFlags flags = BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly;
+        var flags = BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly;
+        if (_includeNonPublic)
+            flags |= BindingFlags.NonPublic;
         try { return t.GetMembers(flags); }
         catch { return Array.Empty<MemberInfo>(); }
     }
@@ -239,4 +249,7 @@ internal static class Program
         var i = Array.IndexOf(args, key);
         return i >= 0 && i + 1 < args.Length ? args[i + 1] : null;
     }
+
+    private static bool HasArg(string[] args, string key)
+        => args.Any(a => string.Equals(a, key, StringComparison.OrdinalIgnoreCase));
 }

@@ -124,10 +124,30 @@ internal static class Tools
                             ["type"] = "string",
                             ["description"] = "Element UniqueId from vvvv_editor_state (the `UniqueId` field).",
                         },
+                        ["elementId"] = new JsonObject
+                        {
+                            ["type"] = "string",
+                            ["description"] = "Element id from static graph context. Use with documentId or documentPath when uniqueId is not available.",
+                        },
+                        ["documentId"] = new JsonObject
+                        {
+                            ["type"] = "string",
+                            ["description"] = "Document id used with elementId to build a UniqueId.",
+                        },
+                        ["documentPath"] = new JsonObject
+                        {
+                            ["type"] = "string",
+                            ["description"] = "Document path used with elementId to build a UniqueId from the static project index.",
+                        },
+                        ["projectPath"] = new JsonObject
+                        {
+                            ["type"] = "string",
+                            ["description"] = "Project directory for resolving documentPath. Defaults to the working directory.",
+                        },
                         ["pin"] = new JsonObject
                         {
                             ["type"] = "string",
-                            ["description"] = "Name of the input pin to set (e.g. \"Input\", \"Increment\").",
+                            ["description"] = "Name of the input pin to set (e.g. \"Input\", \"Increment\"), or \"Value\" for a selected pad/IOBox.",
                         },
                         ["value"] = new JsonObject
                         {
@@ -140,7 +160,7 @@ internal static class Tools
                                             + "If omitted, inferred from the JSON value.",
                         },
                     },
-                    ["required"] = new JsonArray { "uniqueId", "pin", "value" },
+                    ["required"] = new JsonArray { "pin", "value" },
                 },
             },
             new JsonObject
@@ -189,6 +209,21 @@ internal static class Tools
                         {
                             ["type"] = "string",
                             ["description"] = "Optional override for the .agent directory.",
+                        },
+                        ["projectPath"] = new JsonObject
+                        {
+                            ["type"] = "string",
+                            ["description"] = "Project directory for resolving transaction documentPath/document into a document id.",
+                        },
+                        ["documentId"] = new JsonObject
+                        {
+                            ["type"] = "string",
+                            ["description"] = "Default document id for resolving ElementId:Pin targets.",
+                        },
+                        ["documentPath"] = new JsonObject
+                        {
+                            ["type"] = "string",
+                            ["description"] = "Default document path for resolving ElementId:Pin targets.",
                         },
                     },
                     ["required"] = new JsonArray { "snippet", "experimental" },
@@ -396,6 +431,7 @@ internal static class Tools
             docs.Add(new JsonObject
             {
                 ["path"] = doc.Path,
+                ["documentId"] = doc.Id,
                 ["definitions"] = DefinitionArray(doc.Definitions),
                 ["stats"] = StatsObject(doc),
                 ["graph"] = GraphStatsObject(doc.Graph),
@@ -459,11 +495,11 @@ internal static class Tools
 
         var nodes = new JsonArray();
         foreach (var node in graph.Nodes.Take(limit))
-            nodes.Add(NodeObject(node));
+            nodes.Add(NodeObject(node, doc.Id));
 
         var pads = new JsonArray();
         foreach (var pad in graph.Pads.Take(limit))
-            pads.Add(PadObject(pad));
+            pads.Add(PadObject(pad, doc.Id));
 
         var links = new JsonArray();
         foreach (var link in graph.Links.Where(l => includeHidden || !l.Hidden)
@@ -513,9 +549,9 @@ internal static class Tools
             }.ToJsonString(Json.Indented);
         }
 
-        var vertices = graph.Nodes.ToDictionary(n => n.Id, n => (JsonObject)NodeObject(n), StringComparer.Ordinal);
+        var vertices = graph.Nodes.ToDictionary(n => n.Id, n => (JsonObject)NodeObject(n, doc.Id), StringComparer.Ordinal);
         foreach (var p in graph.Pads)
-            vertices[p.Id] = PadObject(p);
+            vertices[p.Id] = PadObject(p, doc.Id);
 
         var inbound = new JsonArray();
         var outbound = new JsonArray();
@@ -533,7 +569,8 @@ internal static class Tools
             ["kind"] = "nodeContext",
             ["root"] = index.Root,
             ["documentPath"] = doc.Path,
-            ["target"] = node is not null ? NodeObject(node) : PadObject(pad!),
+            ["documentId"] = doc.Id,
+            ["target"] = node is not null ? NodeObject(node, doc.Id) : PadObject(pad!, doc.Id),
             ["inbound"] = inbound,
             ["outbound"] = outbound,
             ["warnings"] = StringArray(doc.Warnings),
@@ -577,7 +614,7 @@ internal static class Tools
         ["links"] = graph?.Links.Count ?? 0,
     };
 
-    private static JsonObject NodeObject(PatchNode node)
+    private static JsonObject NodeObject(PatchNode node, string? documentId = null)
     {
         var pins = new JsonArray();
         foreach (var pin in node.Pins)
@@ -593,6 +630,7 @@ internal static class Tools
         return new JsonObject
         {
             ["id"] = node.Id,
+            ["uniqueId"] = UniqueIdString(documentId, node.Id),
             ["kind"] = "node",
             ["name"] = node.Name,
             ["category"] = node.Category,
@@ -602,15 +640,19 @@ internal static class Tools
         };
     }
 
-    private static JsonObject PadObject(PatchPad pad) => new()
+    private static JsonObject PadObject(PatchPad pad, string? documentId = null) => new()
     {
         ["id"] = pad.Id,
+        ["uniqueId"] = UniqueIdString(documentId, pad.Id),
         ["kind"] = "pad",
         ["comment"] = pad.Comment,
         ["value"] = pad.Value,
         ["type"] = pad.Type,
         ["bounds"] = pad.Bounds,
     };
+
+    private static string? UniqueIdString(string? documentId, string elementId)
+        => string.IsNullOrWhiteSpace(documentId) ? null : $"{documentId} {elementId}";
 
     private static JsonObject LinkObject(PatchLink link) => new()
     {
@@ -649,10 +691,12 @@ internal static class Tools
     private static string SetPinValue(JsonNode? args)
     {
         var uniqueId = (string?)args?["uniqueId"];
+        var elementId = (string?)args?["elementId"];
         var pin = (string?)args?["pin"];
-        if (string.IsNullOrWhiteSpace(uniqueId)) throw new RpcException(-32602, "uniqueId is required");
         if (string.IsNullOrWhiteSpace(pin)) throw new RpcException(-32602, "pin is required");
         if (args?["value"] is not JsonNode value) throw new RpcException(-32602, "value is required");
+        uniqueId = ResolveUniqueId(args, uniqueId, elementId);
+        ValidateStaticNodePin(args, null, ElementIdPart(uniqueId), pin);
 
         var request = new JsonObject
         {
@@ -691,11 +735,13 @@ internal static class Tools
     {
         if (args?["transaction"] is not JsonObject transaction)
             throw new RpcException(-32602, "transaction object is required");
+        var resolvedTransaction = (JsonObject)transaction.DeepClone();
+        ResolveTransactionTargets(resolvedTransaction, args);
 
         var request = new JsonObject
         {
             ["op"] = "graphTransaction",
-            ["transaction"] = transaction.DeepClone(),
+            ["transaction"] = resolvedTransaction,
         };
 
         return SubmitRequest(request, (string?)args?["agentDir"]);
@@ -724,6 +770,8 @@ internal static class Tools
                 ["kind"] = ScalarString(obj, "Kind"),
                 ["symbol"] = ScalarString(obj, "Symbol"),
                 ["messages"] = obj["Messages"]?.DeepClone(),
+                ["pins"] = obj["Pins"]?.DeepClone(),
+                ["value"] = ScalarString(obj, "Value"),
             });
         }
         return result;
@@ -752,6 +800,120 @@ internal static class Tools
             ? text
             : null;
 
+    private static string ResolveUniqueId(JsonNode? args, string? uniqueId, string? elementId)
+    {
+        var id = string.IsNullOrWhiteSpace(uniqueId) ? elementId : uniqueId;
+        if (string.IsNullOrWhiteSpace(id))
+            throw new RpcException(-32602, "uniqueId or elementId is required");
+
+        id = id.Trim();
+        if (id.Contains(' '))
+            return id;
+
+        var documentId = ResolveDocumentId(args);
+        if (string.IsNullOrWhiteSpace(documentId))
+            throw new RpcException(-32602, "documentId or documentPath is required when using elementId or bare element id targets");
+
+        return $"{documentId} {id}";
+    }
+
+    private static void ValidateStaticNodePin(JsonNode? args, JsonObject? transaction, string elementId, string pin)
+    {
+        elementId = ElementIdPart(elementId);
+        var documentPath = (string?)args?["documentPath"]
+            ?? (string?)transaction?["documentPath"]
+            ?? (string?)transaction?["document"];
+        if (string.IsNullOrWhiteSpace(documentPath) || LooksLikeDocumentId(documentPath))
+            return;
+
+        var projectPath = (string?)args?["projectPath"];
+        if (string.IsNullOrWhiteSpace(projectPath)) projectPath = AgentPaths.Root;
+
+        var index = Indexer.Build(projectPath);
+        var doc = RequireDocument(index, documentPath);
+        var graph = doc.Graph;
+        if (graph is null) return;
+
+        if (graph.Pads.Any(p => p.Id == elementId))
+        {
+            if (!string.Equals(pin, "Value", StringComparison.OrdinalIgnoreCase))
+                throw new RpcException(-32602, $"pad/IOBox '{elementId}' in {doc.Path} only supports pin 'Value'.");
+            return;
+        }
+
+        var node = graph.Nodes.FirstOrDefault(n => n.Id == elementId);
+        if (node is null) return;
+
+        var pins = node.Pins
+            .Where(p => p.Kind is "InputPin" or "ApplyPin" or "StateInputPin")
+            .Select(p => p.Name)
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .ToArray();
+        if (pins.Length > 0 && !pins.Contains(pin, StringComparer.OrdinalIgnoreCase))
+            throw new RpcException(-32602, $"node '{elementId}' in {doc.Path} has no input/apply pin named '{pin}'. Known pins: {string.Join(", ", pins)}");
+    }
+
+    private static string ElementIdPart(string id)
+    {
+        var text = id.Trim();
+        var i = text.LastIndexOf(' ');
+        return i >= 0 ? text[(i + 1)..].Trim() : text;
+    }
+
+    private static void ResolveTransactionTargets(JsonObject transaction, JsonNode? args)
+    {
+        if (transaction["ops"] is not JsonArray ops)
+            return;
+
+        foreach (var op in ops.OfType<JsonObject>())
+        {
+            if ((string?)op["op"] != "setPin") continue;
+            var target = (string?)op["target"];
+            if (string.IsNullOrWhiteSpace(target)) continue;
+
+            var i = target.LastIndexOf(':');
+            if (i <= 0 || i == target.Length - 1) continue;
+
+            var idPart = target[..i].Trim();
+            ValidateStaticNodePin(args, transaction, idPart, target[(i + 1)..].Trim());
+            if (idPart.Contains(' ')) continue;
+
+            var documentId = ResolveDocumentId(args, transaction);
+            if (string.IsNullOrWhiteSpace(documentId)) continue;
+
+            op["target"] = $"{documentId} {idPart}:{target[(i + 1)..].Trim()}";
+        }
+    }
+
+    private static string? ResolveDocumentId(JsonNode? args, JsonObject? transaction = null)
+    {
+        var documentId = (string?)args?["documentId"] ?? (string?)transaction?["documentId"];
+        if (!string.IsNullOrWhiteSpace(documentId))
+            return documentId;
+
+        var documentPath = (string?)args?["documentPath"]
+            ?? (string?)transaction?["documentPath"]
+            ?? (string?)transaction?["document"];
+
+        if (!string.IsNullOrWhiteSpace(documentPath) && LooksLikeDocumentId(documentPath))
+            return documentPath;
+
+        if (string.IsNullOrWhiteSpace(documentPath))
+            return null;
+
+        var projectPath = (string?)args?["projectPath"];
+        if (string.IsNullOrWhiteSpace(projectPath)) projectPath = AgentPaths.Root;
+
+        var index = Indexer.Build(projectPath);
+        return RequireDocument(index, documentPath).Id;
+    }
+
+    private static bool LooksLikeDocumentId(string value)
+        => !value.EndsWith(".vl", StringComparison.OrdinalIgnoreCase)
+        && !value.Contains('/')
+        && !value.Contains('\\')
+        && !value.Contains('.');
+
     private static string SubmitRequest(JsonObject request, string? agentDir)
     {
         if (string.IsNullOrWhiteSpace(agentDir)) agentDir = AgentPaths.DefaultAgentDir;
@@ -778,6 +940,7 @@ internal static class Tools
                 try { result = File.ReadAllText(resultPath); }
                 catch { Thread.Sleep(50); continue; }
                 try { File.Delete(resultPath); } catch { }
+                Thread.Sleep(150);
                 return result;
             }
             Thread.Sleep(100);

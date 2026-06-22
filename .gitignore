@@ -20,6 +20,7 @@ test-projects/
 
 # Generated codebase-memory graph artifacts
 .codebase-memory/
+tools/vl-probe/probe-output/
 
 # Local vvvv bridge test scratch (kept on disk, not tracked)
 /output.json
