@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "label": "Dry run add pad",
+  "dryRun": true,
+  "validate": false,
+  "ops": [
+    {
+      "op": "addPad",
+      "alias": "threshold",
+      "name": "Threshold",
+      "type": "Float32",
+      "value": 0.5,
+      "bounds": [520, 260],
+      "showValueBox": true
+    }
+  ]
+}

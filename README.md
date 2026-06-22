@@ -21,6 +21,7 @@ stay small, transactional, and hosted from the HDE/editor runtime where possible
 - `package/` - staging area for distribution-only assets such as bundled tool binaries.
 - `schemas/graph-transaction.schema.json` - first graph transaction contract.
 - `examples/graph-transactions/` - copyable transaction payloads.
+- `bench/` - repeatable, timed VL.Agent speed benchmark (Codex-driven scenarios).
 - `docs/` - concise project context, Windows test checklist, reference notes,
   research artifacts, and the agent cockpit proposal.
 

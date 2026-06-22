@@ -10,6 +10,21 @@ Target format for the first implementation:
 <UniqueId>:<PinName>
 ```
 
+`addPad` creates a typed IOBox on the active editor canvas. The apply result
+returns created aliases mapped to vvvv `UniqueId` values.
+
+`connect` can link transaction-created pad aliases, transaction-created node
+pins written as `<alias>:<PinName>`, existing pads, and existing node pins
+written as `<NodeUniqueId>:<PinName>`. Dry-runs validate created-node pin
+direction and type, so route incompatible types through an explicit conversion
+or join node.
+
+`setBounds` moves or resizes a selected live node/pad. Use the target's full
+`UniqueId` from `vvvv_editor_state`; alias targets are not supported yet.
+
+`select` can select aliases created earlier in the same transaction, or reselect
+full `UniqueId` targets that are already selected in the live editor.
+
 Example MCP tool arguments:
 
 ```json
@@ -29,3 +44,7 @@ Example MCP tool arguments:
   }
 }
 ```
+
+For structural examples, see `dry-run-add-pad.json`,
+`dry-run-add-pad-connect.json`, `dry-run-set-bounds.json`, and
+`dry-run-add-pad-select.json`.

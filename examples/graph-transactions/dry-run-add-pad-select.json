@@ -1,0 +1,22 @@
+{
+  "transaction": {
+    "schemaVersion": 1,
+    "label": "Create and select IOBox",
+    "dryRun": true,
+    "validate": false,
+    "ops": [
+      {
+        "op": "addPad",
+        "alias": "probe",
+        "name": "Probe",
+        "type": "Float32",
+        "value": 0.25,
+        "bounds": [760, 330]
+      },
+      {
+        "op": "select",
+        "targets": ["probe"]
+      }
+    ]
+  }
+}

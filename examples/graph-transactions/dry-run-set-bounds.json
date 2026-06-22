@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "label": "Dry run set bounds",
+  "dryRun": true,
+  "validate": false,
+  "ops": [
+    {
+      "op": "setBounds",
+      "target": "<UniqueId>",
+      "bounds": [520, 260, 85, 19]
+    }
+  ]
+}

@@ -165,6 +165,37 @@ internal static class Tools
             },
             new JsonObject
             {
+                ["name"] = "vvvv_node_query",
+                ["description"] =
+                    "Query the live vvvv node resolver/node-browser context for addNode candidates. "
+                  + "Returns compact operation/process symbols plus input/output pin names and types, scoped "
+                  + "to the current active patch and latest compilation. Use this before creating unfamiliar nodes.",
+                ["inputSchema"] = new JsonObject
+                {
+                    ["type"] = "object",
+                    ["properties"] = new JsonObject
+                    {
+                        ["query"] = new JsonObject
+                        {
+                            ["type"] = "string",
+                            ["description"] = "Search text, e.g. 'Skia Line', 'Renderer', 'LFO', or '+'.",
+                        },
+                        ["limit"] = new JsonObject
+                        {
+                            ["type"] = "integer",
+                            ["description"] = "Maximum candidates to return. Defaults to 12, max 50.",
+                        },
+                        ["agentDir"] = new JsonObject
+                        {
+                            ["type"] = "string",
+                            ["description"] = "Optional override for the .agent directory.",
+                        },
+                    },
+                    ["required"] = new JsonArray { "query" },
+                },
+            },
+            new JsonObject
+            {
                 ["name"] = "vvvv_paste",
                 ["description"] =
                     "EXPERIMENTAL dev-only live paste. Drops a clipboard-style vvvv Canvas snippet "
@@ -234,10 +265,17 @@ internal static class Tools
                 ["name"] = "vvvv_apply_graph_transaction",
                 ["description"] =
                     "EXPERIMENTAL graph transaction entry point. Sends a GraphTransaction batch to "
-                  + "the vvvv-side AgentHost/CommandProcessor. First slice supports dryRun, validate, "
-                  + "and batching setPin operations into one undo-integrated Confirm. Structural ops "
-                  + "such as addNode/connect are reported as unsupported until the safe editor mutation "
-                  + "path is proven.",
+                  + "the vvvv-side AgentHost/CommandProcessor. The transaction must contain "
+                  + "schemaVersion=1, a non-empty label, and an ops array. First slice supports dryRun, "
+                  + "validate, batching setPin operations into one undo-integrated Confirm, and experimental "
+                  + "addNode/addPad creation on the active canvas. setPin targets may be live "
+                  + "<UniqueId>:<PinName> targets or transaction-created aliases as <alias>:<PinName>. "
+                  + "setBounds is available for selected live nodes/pads. connect can link transaction-created "
+                  + "pad aliases, transaction-created node pins as <alias>:<PinName>, existing pads, and "
+                  + "existing node pins as <UniqueId>:<PinName>; created-node connects validate pin direction "
+                  + "and type during dry-run/apply. select can select transaction-created aliases or already-selected "
+                  + "live UniqueIds. Other structural ops such as disconnect are reported as unsupported "
+                  + "until a safe path is proven.",
                 ["inputSchema"] = new JsonObject
                 {
                     ["type"] = "object",
@@ -246,7 +284,20 @@ internal static class Tools
                         ["transaction"] = new JsonObject
                         {
                             ["type"] = "object",
-                            ["description"] = "GraphTransaction object. See schemas/graph-transaction.schema.json.",
+                            ["description"] = "GraphTransaction object. Required shape: { schemaVersion: 1, label: string, dryRun?: boolean, validate?: boolean, ops: [...] }. Use ops, not operations.",
+                            ["properties"] = new JsonObject
+                            {
+                                ["schemaVersion"] = new JsonObject { ["type"] = "integer", ["const"] = 1 },
+                                ["label"] = new JsonObject { ["type"] = "string", ["minLength"] = 1 },
+                                ["dryRun"] = new JsonObject { ["type"] = "boolean" },
+                                ["validate"] = new JsonObject { ["type"] = "boolean" },
+                                ["ops"] = new JsonObject
+                                {
+                                    ["type"] = "array",
+                                    ["description"] = "Operation objects. Supported op values: setPin, addNode, addPad, connect, setBounds, select, validate.",
+                                },
+                            },
+                            ["required"] = new JsonArray { "schemaVersion", "label", "ops" },
                         },
                         ["agentDir"] = new JsonObject
                         {
@@ -271,6 +322,7 @@ internal static class Tools
             "vvvv_editor_state" => EditorState(args),
             "vvvv_context_query" => ContextQuery(args),
             "vvvv_set_pin_value" => SetPinValue(args),
+            "vvvv_node_query" => NodeQuery(args),
             "vvvv_paste" => Paste(args),
             "vvvv_apply_graph_transaction" => ApplyGraphTransaction(args),
             _ => throw new RpcException(-32602, $"unknown tool: {name}"),
@@ -710,6 +762,22 @@ internal static class Tools
         return SubmitRequest(request, (string?)args?["agentDir"]);
     }
 
+    private static string NodeQuery(JsonNode? args)
+    {
+        var query = (string?)args?["query"];
+        if (string.IsNullOrWhiteSpace(query))
+            throw new RpcException(-32602, "query is required");
+
+        var request = new JsonObject
+        {
+            ["op"] = "nodeQuery",
+            ["query"] = query,
+        };
+        if ((int?)args?["limit"] is { } limit) request["limit"] = Math.Clamp(limit, 1, 50);
+
+        return SubmitRequest(request, (string?)args?["agentDir"]);
+    }
+
     private static string Paste(JsonNode? args)
     {
         var snippet = (string?)args?["snippet"];
@@ -865,6 +933,18 @@ internal static class Tools
         if (transaction["ops"] is not JsonArray ops)
             return;
 
+        var aliases = ops
+            .OfType<JsonObject>()
+            .Where(op =>
+            {
+                var kind = (string?)op["op"];
+                return string.Equals(kind, "addNode", StringComparison.Ordinal)
+                    || string.Equals(kind, "addPad", StringComparison.Ordinal);
+            })
+            .Select(op => (string?)op["alias"])
+            .Where(alias => !string.IsNullOrWhiteSpace(alias))
+            .ToHashSet(StringComparer.Ordinal);
+
         foreach (var op in ops.OfType<JsonObject>())
         {
             if ((string?)op["op"] != "setPin") continue;
@@ -875,6 +955,8 @@ internal static class Tools
             if (i <= 0 || i == target.Length - 1) continue;
 
             var idPart = target[..i].Trim();
+            if (aliases.Contains(idPart)) continue;
+
             ValidateStaticNodePin(args, transaction, idPart, target[(i + 1)..].Trim());
             if (idPart.Contains(' ')) continue;
 

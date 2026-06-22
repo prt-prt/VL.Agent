@@ -207,6 +207,10 @@ internal static class Program
                     var ps = string.Join(", ", mi.GetParameters().Select(p => $"{Pretty(p.ParameterType)} {p.Name}"));
                     w.WriteLine($"    {Pretty(mi.ReturnType)} {mi.Name}({ps});");
                     break;
+                case ConstructorInfo ci:
+                    var cps = string.Join(", ", ci.GetParameters().Select(p => $"{Pretty(p.ParameterType)} {p.Name}"));
+                    w.WriteLine($"    {t.Name}({cps});");
+                    break;
                 case PropertyInfo pi:
                     var acc = (pi.CanRead ? "get; " : "") + (pi.CanWrite ? "set; " : "");
                     w.WriteLine($"    {Pretty(pi.PropertyType)} {pi.Name} {{ {acc}}}");

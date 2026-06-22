@@ -1,6 +1,8 @@
 # Session Context
 
-Last updated: 2026-06-20 on macOS after Windows validation against vvvv gamma 7.2.
+Last updated: 2026-06-22 on Windows after hardening live addNode resolution,
+alias pin setting, and connect commit/verification for the first Skia-line
+benchmark attempt.
 
 ## Purpose
 
@@ -57,13 +59,79 @@ Use `docs/WINDOWS_TESTING.md` as the running checklist.
 
 Highest priority:
 
-- Build `VL.Agent/VL.Agent.csproj` against the installed vvvv gamma assemblies.
-- Validate `VL.Agent.HDE.vl` as the default host.
-- Validate `vvvv_context_query` against a live editor snapshot.
-- Test `vvvv_apply_graph_transaction` dry-run and batched `setPin`.
-- Confirm batched `setPin` becomes one undo step.
-- Inventory safe APIs for structural ops: `addNode`, `addPad`, `connect`,
-  `setBounds`, and `select`.
+- Continue from the verified graph transaction slices: `addPad`,
+  created-node-pin `connect`, selected-target `setBounds`, and first-slice
+  `select`.
+- Improve target resolution so `select` and `setBounds` can resolve arbitrary
+  unselected live graph `UniqueId` targets, not only current selection.
+- Add support for non-primitive output pads or another way to expose/render
+  texture outputs for benchmark verification.
+- Add higher-level recipe/help-patch discovery for common graph patterns. Live
+  `nodeQuery` now finds node symbols and pins, but the Skia-line benchmark still
+  needs a compact way to discover the renderer/fill/composition/vector-building
+  recipe without guessing.
+- Improve structural transaction atomicity beyond the up-front resolver and
+  dry-run checks: failures during later structural commits can still leave
+  earlier node creation committed, though results now report `partial:true`.
+- Inventory safe APIs for remaining structural ops: `disconnect` and `annotate`.
+
+Recently verified:
+
+- `addNode` now places operation and process nodes in a focused patch through the
+  public model path (`ModelExtensions.AddNode`) instead of the failed
+  internal-`CreateRed` route. `operation:Math:+` and `process:Animation:LFO`
+  both resolved against `DevEnvHost.Instance.LatestCompilation` via
+  `SymbolExtensions.GetResolver` + `Resolver.GetCandidates`, were finalized with
+  `NodeRefHelpers.NormalizeNodeReferenceOnCreation`, and appeared visibly in
+  vvvv gamma 7.2. Same-transaction `select` worked for created node aliases, and
+  the editor snapshot reported `VL.Model.Node` selections (`OperationNode: +`,
+  `ProcessNode: LFO`).
+- `connect` now resolves pins on nodes created earlier in the same transaction
+  via `<alias>:<PinName>`. Live verification created `process:Animation:LFO` and
+  `operation:Math:+`, then connected `lfo_a:Phase -> plus_a:Input` in the same
+  graph transaction.
+- `nodeQuery` queries the active patch resolver and returns compact
+  operation/process candidates with exact `addNode` symbols and input/output pin
+  names/types. Verified examples: `LFO` returns `process:Animation:LFO`;
+  `Skia Line` returns `process:Layers:Line`.
+- The Skia-line benchmark prompt now requires bounded trial-and-error. A run
+  attempted `LFO -> Vector2 joins -> Skia Line -> Renderer (OffScreen)` and
+  exposed useful failures instead of stopping early: dry-run/apply resolver
+  mismatch for Vector2 nodes and non-atomic partial `addNode` creation.
+- `addNode` now resolves all planned node symbols up front for dry-run and apply,
+  preventing the mixed valid+invalid `addNode` partial-creation case. Browser
+  display variants such as `process:Animation:LFO (MinMax)`,
+  `operation:Vector2:Vector (Join)`, and `process:Layers:Line` are resolved via
+  the live scope and `ReferenceToSymbol.ToNodeReference(...)`, which keeps
+  dry-run and apply aligned for the tested symbols.
+- `setPin` can target transaction-created aliases with `<alias>:<PinName>`.
+  Alias pins are validated against the resolved node definition before apply and
+  applied after node/pad creation, before links/selects.
+- The `skia-line` benchmark run (`20260622-155351-skia-line`) created some
+  correct nodes but did not produce a functional patch. Root causes found in the
+  raw results:
+  - `connected` was populated before link commit, so a failed link transaction
+    could look more successful than it was.
+  - `Patch.GetOrAddLink(...)` must be committed by replacing the returned link's
+    updated `ContainingPatch`; replacing the `Link` itself produced
+    `This operation does not apply to an empty instance`.
+  - The benchmark accepted a semantically wrong fallback
+    `LFO:Phase -> Rectangle:Position` (`Float32 -> Vector2`) because created-node
+    connect dry-runs did not validate pin direction/type.
+- `connect` now validates transaction-created node endpoints against resolved
+  pin definitions during dry-run/apply. Verified bad route:
+  `process:Animation:LFO (MinMax)` `Phase` -> `process:Source:Rectangle`
+  `Position` fails before mutation with `type mismatch Float32 -> Vector2`.
+- `connect` now commits `link.ContainingPatch` sequentially and only appends to
+  result `connected` after `MakeCurrent(...)` and best-effort post-commit link
+  verification. Verified good route:
+  `LFO (MinMax):Phase -> Vector2:Vector (Join):X -> Source.Rectangle:Position`
+  returned `ok:true`, `partial:false`, two `connected` entries, and selected the
+  three created nodes.
+- `connect` now resolves existing unselected nodes/pads by full `UniqueId`
+  through `DevEnvHost.Instance.CurrentSolution`, with selected-live-element
+  lookup only as fallback. Verified by repairing older partial nodes with a
+  connect-only transaction and no selection.
 
 ## Safety Rules
 

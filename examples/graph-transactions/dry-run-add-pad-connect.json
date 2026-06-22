@@ -1,0 +1,35 @@
+{
+  "transaction": {
+    "schemaVersion": 1,
+    "label": "Create and connect IOBoxes",
+    "dryRun": true,
+    "validate": false,
+    "ops": [
+      {
+        "op": "addPad",
+        "alias": "source",
+        "name": "Source",
+        "type": "Float32",
+        "value": 0.75,
+        "bounds": [760, 380]
+      },
+      {
+        "op": "addPad",
+        "alias": "sink",
+        "name": "Sink",
+        "type": "Float32",
+        "value": 0,
+        "bounds": [900, 380]
+      },
+      {
+        "op": "connect",
+        "from": "source",
+        "to": "sink"
+      },
+      {
+        "op": "select",
+        "targets": ["source", "sink"]
+      }
+    ]
+  }
+}

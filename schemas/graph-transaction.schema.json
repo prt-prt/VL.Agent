@@ -97,6 +97,7 @@
     },
     "addPad": {
       "type": "object",
+      "description": "Create a typed IOBox/pad. First implementation applies to the active editor canvas and supports primitive value types.",
       "additionalProperties": false,
       "required": ["op", "alias", "name", "type"],
       "properties": {
@@ -111,17 +112,18 @@
     },
     "connect": {
       "type": "object",
+      "description": "Create a dataflow link. Supports transaction-created pad aliases, transaction-created node pins as <alias>:<PinName>, existing pad UniqueIds, and existing node pins as <NodeUniqueId>:<PinName>. Created-node endpoints are checked for pin direction/type before apply.",
       "additionalProperties": false,
       "required": ["op", "from", "to"],
       "properties": {
         "op": { "const": "connect" },
         "from": {
           "type": "string",
-          "description": "Source endpoint, for example alias.Output or elementId:PinName."
+          "description": "Source endpoint, for example alias or <NodeUniqueId>:<PinName>."
         },
         "to": {
           "type": "string",
-          "description": "Sink endpoint, for example alias.Input or elementId:PinName."
+          "description": "Sink endpoint, for example alias, <PadUniqueId>, or <NodeUniqueId>:<PinName>."
         }
       }
     },
@@ -148,7 +150,7 @@
         "op": { "const": "setPin" },
         "target": {
           "type": "string",
-          "description": "Endpoint. First implementation supports '<UniqueId>:<PinName>'; alias endpoints are reserved for structural ops."
+          "description": "Endpoint. Supports '<UniqueId>:<PinName>' and transaction-created aliases as '<alias>:<PinName>' when the alias is created in the same transaction."
         },
         "value": { "$ref": "#/$defs/value" },
         "type": {
@@ -159,6 +161,7 @@
     },
     "setBounds": {
       "type": "object",
+      "description": "Move or resize an existing element. First implementation requires a selected live node/pad target by full UniqueId.",
       "additionalProperties": false,
       "required": ["op", "target", "bounds"],
       "properties": {
@@ -180,6 +183,7 @@
     },
     "select": {
       "type": "object",
+      "description": "Select transaction-created aliases or live-resolved UniqueId targets. The current implementation requires existing UniqueIds to already be selected in the editor.",
       "additionalProperties": false,
       "required": ["op", "targets"],
       "properties": {
