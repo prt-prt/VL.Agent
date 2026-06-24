@@ -262,8 +262,11 @@ public partial class CommandProcessor
             }
         }
 
-        if (plan.SetBounds.Count > 0 && !plan.SetBounds.All(p => TryGetSelectedLiveElement(p.Uid, out _, out _)))
-            plan.Diagnostics.Add("setBounds currently requires each target to be selected in the live editor");
+        foreach (var setBoundsPlan in plan.SetBounds)
+        {
+            if (!TryResolveGraphElement(setBoundsPlan.Uid, out _, out var error))
+                plan.Diagnostics.Add($"setBounds target '{setBoundsPlan.Uid}' could not be resolved: {error}");
+        }
         if (plan.SetPins.Count > 0 && plan.HasStructuralEditsBesidesSetPin)
             plan.Diagnostics.Add("mixing live UniqueId setPin with structural ops in one transaction is not supported yet; use alias setPin for transaction-created nodes or submit separate transactions");
         if ((plan.AddNodes.Count > 0 || plan.AddPads.Count > 0) && plan.SetBounds.Count > 0)
@@ -275,11 +278,11 @@ public partial class CommandProcessor
                 if (plan.AddPads.Any(p => string.Equals(p.Alias, target, StringComparison.Ordinal))
                     || plan.AddNodes.Any(p => string.Equals(p.Alias, target, StringComparison.Ordinal)))
                     continue;
-                if (UniqueId.TryParse(target, out var uid) && TryGetSelectedLiveElement(uid, out _, out _))
+                if (UniqueId.TryParse(target, out var uid) && TryResolveGraphElement(uid, out _, out _))
                     continue;
 
                 plan.Diagnostics.Add(UniqueId.TryParse(target, out _)
-                    ? $"select target '{target}' must already be selected in the live editor for this first implementation"
+                    ? $"select target '{target}' could not be resolved in the live graph model"
                     : $"select target '{target}' must be a created alias in this transaction or a UniqueId");
             }
         }

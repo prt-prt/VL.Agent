@@ -361,8 +361,13 @@ public partial class CommandProcessor
         object value = DefaultValueFor(clrType);
         if (opEl.TryGetProperty("value", out var valueEl))
         {
-            value = Coerce(valueEl, type);
-            value = ConvertForClrType(value, clrType);
+            var coerced = Coerce(valueEl, type);
+            if (coerced is null)
+            {
+                diagnostics.Add($"addPad {alias}: could not coerce value for type '{type}'");
+                return false;
+            }
+            value = ConvertForClrType(coerced, clrType);
         }
 
         var position = new Point2(0, 0);

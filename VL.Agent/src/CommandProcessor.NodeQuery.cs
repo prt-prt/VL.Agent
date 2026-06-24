@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Drawing;
 using System.Collections;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using VL.Core;
 using VL.HDE;
 using VL.Lang.Platforms;
@@ -13,6 +14,12 @@ namespace VL.Agent;
 
 public partial class CommandProcessor
 {
+    private const int NodeQueryCacheLimit = 128;
+    private static readonly TimeSpan NodeQueryCacheTtl = TimeSpan.FromMinutes(2);
+    private static readonly object NodeQueryCacheGate = new();
+    private static readonly Dictionary<string, CachedNodeQuery> NodeQueryCache = [];
+    private static readonly Queue<string> NodeQueryCacheOrder = [];
+
     private static string NodeQuery(JsonElement root)
     {
         var query = GetString(root, "query");
@@ -35,6 +42,10 @@ public partial class CommandProcessor
             var compilation = VL.Lang.DevEnvHost.Instance?.LatestCompilation;
             if (compilation is null)
                 return Err("nodeQuery failed: no live compilation available (DevEnvHost.Instance.LatestCompilation was null)");
+
+            var cacheKey = NodeQueryCacheKey(query, limit, patch, compilation);
+            if (TryGetCachedNodeQuery(cacheKey, out var cached))
+                return cached;
 
             var resolver = SymbolExtensions.GetResolver(patch, compilation);
             if (resolver is null)
@@ -75,13 +86,60 @@ public partial class CommandProcessor
                 count = results.Length,
                 candidates = results,
             };
-            return JsonSerializer.Serialize(response);
+            var json = JsonSerializer.Serialize(response);
+            CacheNodeQuery(cacheKey, json);
+            return json;
         }
         catch (Exception ex)
         {
             return Err("nodeQuery failed: " + ex.Message);
         }
     }
+
+    private static string NodeQueryCacheKey(string query, int limit, Patch patch, object compilation)
+        => string.Join("|", [
+            patch.UniqueId.ToString(),
+            RuntimeHelpers.GetHashCode(compilation).ToString(),
+            limit.ToString(),
+            query.Trim().ToLowerInvariant(),
+        ]);
+
+    private static bool TryGetCachedNodeQuery(string key, out string json)
+    {
+        lock (NodeQueryCacheGate)
+        {
+            if (NodeQueryCache.TryGetValue(key, out var cached)
+                && DateTimeOffset.UtcNow - cached.CreatedAtUtc <= NodeQueryCacheTtl)
+            {
+                json = cached.Json;
+                return true;
+            }
+
+            NodeQueryCache.Remove(key);
+        }
+
+        json = "";
+        return false;
+    }
+
+    private static void CacheNodeQuery(string key, string json)
+    {
+        lock (NodeQueryCacheGate)
+        {
+            if (NodeQueryCache.ContainsKey(key))
+            {
+                NodeQueryCache[key] = new CachedNodeQuery(json, DateTimeOffset.UtcNow);
+                return;
+            }
+
+            NodeQueryCache[key] = new CachedNodeQuery(json, DateTimeOffset.UtcNow);
+            NodeQueryCacheOrder.Enqueue(key);
+            while (NodeQueryCacheOrder.Count > NodeQueryCacheLimit)
+                NodeQueryCache.Remove(NodeQueryCacheOrder.Dequeue());
+        }
+    }
+
+    private readonly record struct CachedNodeQuery(string Json, DateTimeOffset CreatedAtUtc);
 
     private static bool NodeCandidateMatches(INodeDefinitionSymbol symbol, string[] terms)
     {

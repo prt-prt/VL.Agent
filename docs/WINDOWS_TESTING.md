@@ -134,8 +134,10 @@ Use `examples/graph-transactions/` as copyable payloads.
 - [x] One valid `setBounds` moves a selected node visibly on the active canvas.
 - [x] One valid `setBounds` moves a selected pad/IOBox visibly on the active
   canvas.
-- [x] `setBounds` with an unselected target returns diagnostics and does not
+- [x] `setBounds` with an unresolved target returns diagnostics and does not
   apply.
+- [ ] `setBounds` can move an arbitrary unselected live graph node/pad by full
+  `UniqueId` through model resolution.
 - [x] `setBounds` with invalid bounds shape returns diagnostics and does not
   apply.
 - [x] Multiple `setBounds` ops apply without losing selection/live model context.
@@ -178,6 +180,8 @@ Use `examples/graph-transactions/` as copyable payloads.
 - [x] Accept transaction-local aliases for `addPad` + `connect`.
 - [x] Accept transaction-local aliases for created-node `setPin` targets.
 - [x] Accept full unselected live node `UniqueId` endpoints for `connect`.
+- [ ] Accept full unselected live node/pad `UniqueId` targets for `select` and
+  `setBounds`.
 - [ ] Decide whether target should change to `{ "uniqueId": "...", "pin": "..." }`
   for stronger schema validation.
 
@@ -424,3 +428,19 @@ Append findings here with absolute dates and vvvv version.
   target older unselected nodes by full `UniqueId`.
   Remaining blocker for full Skia-line completion: `Texture` output pads are
   unsupported, so visual/output verification still needs another exposure path.
+
+### 2026-06-24, vvvv gamma 7.2
+
+- Full `bench/run-bench.ps1` Skia-line did not start from this Codex desktop
+  shell because the packaged WindowsApps `codex.exe` alias returned
+  `Access is denied` before launching the nested agent.
+- Direct mailbox latency probe against live `AgentHost` succeeded. Before the
+  `nodeQuery` cache, repeated `nodeQuery LFO` measured p50
+  `elapsedMs=1929`, `roundTripMs=1898`, `mailboxWaitMs=980`, and
+  `processingMs=912`.
+- After adding a bounded `nodeQuery` cache keyed by active patch, compilation,
+  query, and limit, warm repeated `nodeQuery LFO` measured p50
+  `elapsedMs=134`, `roundTripMs=48`, `mailboxWaitMs=48`, and `processingMs=0`.
+- Cold node-browser searches can still dominate: the first
+  `nodeQuery "Skia Line"` measured `processingMs=2627`, while following cache
+  hits reported `processingMs=0`.

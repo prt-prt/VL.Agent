@@ -61,10 +61,14 @@ live bridge, active canvas, and live compilation resolver. The result summary
 reports elapsed time plus trace fields injected by `CommandProcessor`:
 `mailboxWaitMs`, `processingMs`, and bridge `roundTripMs`.
 
-Each run writes to `bench/runs/` (git-ignored):
+Each agent scenario run writes to `bench/runs/` (git-ignored):
 
 - `<timestamp>-<scenario>.log` — full Codex output (the readable transcript)
 - `<timestamp>-<scenario>.summary.json` — time + loop counts + session pointer
+
+Each mailbox latency probe also writes:
+
+- `<timestamp>-mailbox-<op>-<query>.summary.json` — p50/p95 timings plus per-request samples
 
 The printed summary ends with the path to the Codex session `.jsonl` (under
 `$CODEX_HOME/sessions/`, default `~/.codex/sessions/`) for turn-by-turn history.

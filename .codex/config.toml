@@ -5,5 +5,5 @@ args = [
   '-ExecutionPolicy',
   'Bypass',
   '-File',
-  'C:\Users\3e8\projects\agentic-vl\tools\vl-mcp\dev.ps1'
+  'C:\Users\prt\Documents\1_Projects\agentic-vl\tools\vl-mcp\dev.ps1'
 ]

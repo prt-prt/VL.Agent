@@ -658,12 +658,12 @@
           <tr>
             <td><code>setBounds</code></td>
             <td>First slice</td>
-            <td>Requires selected live node/pad targets by full <code>UniqueId</code>.</td>
+            <td>Moves node/pad targets by full <code>UniqueId</code>, resolving current selection first and then the live graph model.</td>
           </tr>
           <tr>
             <td><code>select</code></td>
             <td>First slice</td>
-            <td>Can select transaction-created aliases or already live-resolved targets.</td>
+            <td>Can select transaction-created aliases or existing node/pad <code>UniqueId</code> targets from the live graph model.</td>
           </tr>
           <tr>
             <td><code>validate</code></td>
@@ -694,7 +694,7 @@
       <ul>
         <li>Structural graph edits are still experimental. Some late failures can leave earlier structural changes committed; results report <code>partial:true</code> when this is detected.</li>
         <li>Paste is dev-only and should not be treated as stable MCP graph insertion.</li>
-        <li><code>setBounds</code> and some selection paths still depend on live selection or current editor focus.</li>
+        <li><code>setBounds</code> and <code>select</code> now share model lookup with <code>connect</code>, but still need Windows runtime verification for arbitrary unselected targets.</li>
         <li>Node insertion depends on the active canvas and the latest live compilation, so a focused patch and healthy vvvv compile state are prerequisites.</li>
         <li>The stable, recommended loop is observe first, use compact context queries, dry-run graph transactions, then apply the smallest viable edit.</li>
       </ul>

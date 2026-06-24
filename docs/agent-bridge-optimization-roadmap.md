@@ -81,6 +81,29 @@ Interpretation:
 - `roundTripMs` is the bridge-level request/result duration.
 - The script's `elapsedMs` also includes the probe's polling interval.
 
+### 2026-06-24 Measurements
+
+The full `bench/run-bench.ps1` Skia-line scenario did not start in this Codex
+desktop shell because the packaged `codex.exe` app alias returned `Access is
+denied` before spawning the nested agent. The direct mailbox probe did run
+against live vvvv/`AgentHost` and isolated the bridge path.
+
+Before caching repeated `nodeQuery LFO` requests, a 20-request run completed
+20/20 with p50 `elapsedMs=1929`, p50 `roundTripMs=1898`,
+p50 `mailboxWaitMs=980`, and p50 `processingMs=912`.
+
+After adding a bounded two-minute `nodeQuery` cache keyed by active patch, live
+compilation, query, and limit, repeated warm `nodeQuery LFO` requests completed
+with p50 `elapsedMs=134`, p50 `roundTripMs=48`, p50 `mailboxWaitMs=48`, and p50
+`processingMs=0`. A saved cold-then-warm validation run is in
+`bench/runs/20260624-212043-mailbox-nodeQuery-LFO.summary.json`.
+
+Cold queries can still be expensive: `nodeQuery "Skia Line"` showed a first
+request with `processingMs=2627`, followed by cached requests with
+`processingMs=0`. The next optimization target is therefore either a prebuilt
+node catalog/recipe layer for common searches or a background transport that can
+hide cold lookup latency behind pushed context.
+
 ## Next Transport Candidates
 
 ### Named Pipe
@@ -142,7 +165,7 @@ dialogs, menus, and API gaps.
 
 ## Near-Term Implementation Order
 
-1. Gather mailbox latency numbers with the new trace fields.
+1. Keep gathering saved mailbox latency summaries under `bench/runs/`.
 2. Add pushed command lifecycle events to the internal dispatcher.
 3. Prototype a named-pipe transport that feeds the existing `AgentCommand`
    dispatcher.
@@ -152,4 +175,3 @@ dialogs, menus, and API gaps.
    contract.
 6. Build a recipe layer for common patch patterns so the agent emits fewer
    low-level graph operations.
-

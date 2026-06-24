@@ -19,11 +19,13 @@ written as `<NodeUniqueId>:<PinName>`. Dry-runs validate created-node pin
 direction and type, so route incompatible types through an explicit conversion
 or join node.
 
-`setBounds` moves or resizes a selected live node/pad. Use the target's full
-`UniqueId` from `vvvv_editor_state`; alias targets are not supported yet.
+`setBounds` moves or resizes an existing node/pad by full `UniqueId`. The bridge
+resolves current selection first, then the live graph model; alias targets are
+not supported yet.
 
-`select` can select aliases created earlier in the same transaction, or reselect
-full `UniqueId` targets that are already selected in the live editor.
+`select` can select aliases created earlier in the same transaction, or existing
+node/pad targets by full `UniqueId` when they are resolvable in the live graph
+model.
 
 Example MCP tool arguments:
 

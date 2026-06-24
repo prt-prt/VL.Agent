@@ -104,7 +104,7 @@ Experimental batch operation:
 ```
 
 The current transaction slice supports `dryRun`, `validate`, batched `setPin`,
-`addNode`, `addPad`, `connect`, selected-target `setBounds`, and first-slice
+`addNode`, `addPad`, `connect`, model-resolved `setBounds`, and model-resolved
 `select`. Structural graph edits are still experimental: use `dryRun=true` first
 and treat `partial:true` results as a signal that earlier structural steps may
 have committed before a later failure.

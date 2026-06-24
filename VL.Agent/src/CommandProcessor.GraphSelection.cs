@@ -63,10 +63,10 @@ public partial class CommandProcessor
                 if (!UniqueId.TryParse(target, out var uid))
                     return (false, $"select target '{target}' is neither a created alias nor a UniqueId");
 
-                if (!TryGetSelectedLiveElement(uid, out var liveElement, out var error))
+                if (!TryResolveGraphElement(uid, out var element, out var error))
                     return (false, $"select failed for {target}: {error}");
 
-                items.Add(liveElement);
+                items.Add(ModelExtensions.GetCurrent(element));
                 selected.Add(uid.ToString());
             }
 
@@ -129,10 +129,10 @@ public partial class CommandProcessor
             var edits = new List<(Element Original, Element Next, Canvas Canvas)>();
             foreach (var plan in plans)
             {
-                if (!TryGetSelectedLiveElement(plan.Uid, out var live, out var error))
+                if (!TryResolveGraphElement(plan.Uid, out var element, out var error))
                     return (false, $"setBounds failed for {plan.Uid}: {error}");
 
-                var element = live.Element;
+                element = ModelExtensions.GetCurrent(element);
                 var canvas = element.ParentCanvas ?? element.Document?.Canvas;
                 if (canvas is null)
                     return (false, $"setBounds failed for {plan.Uid}: target has no parent canvas");
@@ -162,5 +162,29 @@ public partial class CommandProcessor
         {
             return (false, "setBounds failed: " + ex.Message);
         }
+    }
+
+    private static bool TryResolveGraphElement(UniqueId uid, out Element element, out string error)
+    {
+        element = default!;
+        error = "";
+
+        if (TryGetSelectedLiveElement(uid, out var liveElement, out _))
+        {
+            element = liveElement.Element;
+            return true;
+        }
+
+        if (!TryGetModelElement(uid, out element, out error))
+            return false;
+
+        element = ModelExtensions.GetCurrent(element);
+        if (element is not (Node or Pad))
+        {
+            error = $"target is {element.GetType().FullName}, not a node or pad";
+            return false;
+        }
+
+        return true;
     }
 }

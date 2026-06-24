@@ -111,15 +111,15 @@ committed, the result reports `partial:true`, keeps `connected` honest, and
 returns the created alias ids so a follow-up repair transaction can address them
 directly by `UniqueId`.
 
-`setBounds` repositions or resizes a selected live node/pad by full `UniqueId`.
-The first implementation intentionally does not resolve aliases or arbitrary
-unsaved elements yet; select the target in vvvv, then send `[x,y]` or
-`[x,y,width,height]`.
+`setBounds` repositions or resizes an existing node/pad by full `UniqueId`.
+Targets are resolved from the current selection first, then from the live graph
+model exposed by the current solution/active patch. Alias targets are not
+supported yet; use `[x,y]` or `[x,y,width,height]`.
 
 `select` updates the editor selection through `API.CurrentSelection`. The first
-slice supports aliases created earlier in the same transaction and full `UniqueId`
-targets that are already selected in the live editor. It does not yet resolve
-arbitrary unselected graph ids.
+slice supports aliases created earlier in the same transaction and existing
+node/pad targets by full `UniqueId`, including unselected elements resolvable
+through the live graph model.
 
 `addNode` creates operation and process nodes on the active editor canvas through
 the public `ModelExtensions.AddNode(...)` path. The first implementation accepts

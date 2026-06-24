@@ -3,7 +3,8 @@ param(
     [string]$Op = "nodeQuery",
     [string]$Query = "LFO",
     [int]$Count = 10,
-    [int]$TimeoutMs = 5000
+    [int]$TimeoutMs = 5000,
+    [string]$OutputPath = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -113,6 +114,7 @@ else {
 }
 $payload = New-AgentPayload -Op $Op -Query $Query
 $results = New-Object System.Collections.Generic.List[object]
+$startedAtUtc = [DateTime]::UtcNow
 
 for ($i = 1; $i -le $Count; $i++) {
     $result = Submit-AgentRequest -AgentDir $AgentDir -Op $Op -Payload $payload -TimeoutMs $TimeoutMs
@@ -123,40 +125,62 @@ for ($i = 1; $i -le $Count; $i++) {
 
 $ok = @($results | Where-Object ok)
 $failed = @($results | Where-Object { -not $_.ok })
-$elapsed = @($ok | ForEach-Object elapsedMs | Sort-Object)
-$bridge = @($ok | Where-Object { $_.bridgeRoundTripMs -ge 0 } | ForEach-Object bridgeRoundTripMs | Sort-Object)
-$wait = @($ok | Where-Object { $_.mailboxWaitMs -ge 0 } | ForEach-Object mailboxWaitMs | Sort-Object)
-$proc = @($ok | Where-Object { $_.processingMs -ge 0 } | ForEach-Object processingMs | Sort-Object)
+$elapsedValues = @($ok | ForEach-Object { [int]$_.elapsedMs } | Sort-Object)
+$bridgeValues = @($ok | Where-Object { $_.bridgeRoundTripMs -ge 0 } | ForEach-Object { [int]$_.bridgeRoundTripMs } | Sort-Object)
+$waitValues = @($ok | Where-Object { $_.mailboxWaitMs -ge 0 } | ForEach-Object { [int]$_.mailboxWaitMs } | Sort-Object)
+$processingValues = @($ok | Where-Object { $_.processingMs -ge 0 } | ForEach-Object { [int]$_.processingMs } | Sort-Object)
 
-function Percentile {
-    param([int[]]$Values, [double]$P)
-    if ($Values.Count -eq 0) { return $null }
-    $index = [Math]::Min($Values.Count - 1, [Math]::Max(0, [int][Math]::Ceiling(($P / 100.0) * $Values.Count) - 1))
-    return $Values[$index]
-}
-
-$summary = [ordered]@{
-    agentDir = $AgentDir
-    op = $Op
-    count = $Count
-    ok = $ok.Count
-    failed = $failed.Count
-    elapsedMs = [ordered]@{
-        p50 = Percentile $elapsed 50
-        p95 = Percentile $elapsed 95
+$metricSummary = {
+    param($Values)
+    $typed = @($Values | ForEach-Object { [int]$_ } | Sort-Object)
+    if ($typed.Count -eq 0) {
+        return ,@{ "p50" = $null; "p95" = $null }
     }
-    bridgeRoundTripMs = [ordered]@{
-        p50 = Percentile $bridge 50
-        p95 = Percentile $bridge 95
+    if (@($typed | Where-Object { $_ -ne 0 }).Count -eq 0) {
+        return ,@{ "p50" = 0; "p95" = 0 }
     }
-    mailboxWaitMs = [ordered]@{
-        p50 = Percentile $wait 50
-        p95 = Percentile $wait 95
-    }
-    processingMs = [ordered]@{
-        p50 = Percentile $proc 50
-        p95 = Percentile $proc 95
+    $p50Index = [int][Math]::Ceiling(0.5 * $typed.Count) - 1
+    $p95Index = [int][Math]::Ceiling(0.95 * $typed.Count) - 1
+    if ($p50Index -lt 0) { $p50Index = 0 }
+    if ($p95Index -lt 0) { $p95Index = 0 }
+    if ($p50Index -ge $typed.Count) { $p50Index = $typed.Count - 1 }
+    if ($p95Index -ge $typed.Count) { $p95Index = $typed.Count - 1 }
+    return ,@{
+        "p50" = $typed[$p50Index]
+        "p95" = $typed[$p95Index]
     }
 }
 
+$elapsedSummary = & $metricSummary $elapsedValues
+$bridgeSummary = & $metricSummary $bridgeValues
+$waitSummary = & $metricSummary $waitValues
+$processingSummary = & $metricSummary $processingValues
+
+$summary = New-Object psobject
+$summary | Add-Member -NotePropertyName "agentDir" -NotePropertyValue $AgentDir
+$summary | Add-Member -NotePropertyName "op" -NotePropertyValue $Op
+$summary | Add-Member -NotePropertyName "query" -NotePropertyValue $Query
+$summary | Add-Member -NotePropertyName "count" -NotePropertyValue $Count
+$summary | Add-Member -NotePropertyName "ok" -NotePropertyValue $ok.Count
+$summary | Add-Member -NotePropertyName "failed" -NotePropertyValue $failed.Count
+$summary | Add-Member -NotePropertyName "startedAtUtc" -NotePropertyValue $startedAtUtc.ToString("o")
+$summary | Add-Member -NotePropertyName "completedAtUtc" -NotePropertyValue ([DateTime]::UtcNow).ToString("o")
+$summary | Add-Member -NotePropertyName "elapsedMs" -NotePropertyValue $elapsedSummary
+$summary | Add-Member -NotePropertyName "bridgeRoundTripMs" -NotePropertyValue $bridgeSummary
+$summary | Add-Member -NotePropertyName "mailboxWaitMs" -NotePropertyValue $waitSummary
+$summary | Add-Member -NotePropertyName "processingMs" -NotePropertyValue $processingSummary
+$sampleArray = [object[]]$results.ToArray()
+$summary | Add-Member -NotePropertyName "samples" -NotePropertyValue $sampleArray
+
+if (-not $OutputPath) {
+    $runsDir = Join-Path $PSScriptRoot "runs"
+    New-Item -ItemType Directory -Force -Path $runsDir | Out-Null
+    $safeQuery = ($Query -replace '[^A-Za-z0-9_-]+', '-').Trim('-')
+    if (-not $safeQuery) { $safeQuery = "query" }
+    $stamp = Get-Date -Format "yyyyMMdd-HHmmss"
+    $OutputPath = Join-Path $runsDir "$stamp-mailbox-$Op-$safeQuery.summary.json"
+}
+
+$summary | ConvertTo-Json -Depth 8 | Set-Content -Encoding utf8 -LiteralPath $OutputPath
+Write-Host "summary: $OutputPath"
 $summary | ConvertTo-Json -Depth 8

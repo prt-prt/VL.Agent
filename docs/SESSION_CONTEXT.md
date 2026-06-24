@@ -1,8 +1,8 @@
 # Session Context
 
-Last updated: 2026-06-22 on Windows after hardening live addNode resolution,
-alias pin setting, and connect commit/verification for the first Skia-line
-benchmark attempt.
+Last updated: 2026-06-24 after live mailbox latency benchmarking, adding a
+bounded `nodeQuery` cache, and extending `select`/`setBounds` target resolution
+to unselected live graph `UniqueId`s in the model lookup path.
 
 ## Purpose
 
@@ -59,23 +59,24 @@ Use `docs/WINDOWS_TESTING.md` as the running checklist.
 
 Highest priority:
 
-- Continue from the verified graph transaction slices: `addPad`,
-  created-node-pin `connect`, selected-target `setBounds`, and first-slice
+- Continue from the current graph transaction slices: `addPad`,
+  created-node-pin `connect`, model-resolved `setBounds`, and model-resolved
   `select`.
-- Improve target resolution so `select` and `setBounds` can resolve arbitrary
-  unselected live graph `UniqueId` targets, not only current selection.
+- Windows-verify the new `select` and `setBounds` model-resolution path against
+  arbitrary unselected live graph `UniqueId` targets.
 - Add support for non-primitive output pads or another way to expose/render
   texture outputs for benchmark verification.
 - Add higher-level recipe/help-patch discovery for common graph patterns. Live
   `nodeQuery` now finds node symbols and pins, but the Skia-line benchmark still
   needs a compact way to discover the renderer/fill/composition/vector-building
-  recipe without guessing.
+  recipe without guessing. Cold `nodeQuery` resolver scans can take seconds, so
+  recipes or a prebuilt node catalog would improve both reliability and speed.
 - Improve structural transaction atomicity beyond the up-front resolver and
   dry-run checks: failures during later structural commits can still leave
   earlier node creation committed, though results now report `partial:true`.
 - Inventory safe APIs for remaining structural ops: `disconnect` and `annotate`.
 
-Recently verified:
+Recently verified / implemented:
 
 - `addNode` now places operation and process nodes in a focused patch through the
   public model path (`ModelExtensions.AddNode`) instead of the failed
@@ -132,6 +133,21 @@ Recently verified:
   through `DevEnvHost.Instance.CurrentSolution`, with selected-live-element
   lookup only as fallback. Verified by repairing older partial nodes with a
   connect-only transaction and no selection.
+- `select` and `setBounds` now share the model element lookup path used by
+  `connect`: selected live elements are used first, then
+  `DevEnvHost.Instance.CurrentSolution`, `SessionNodes.CurrentSolution`, and the
+  active patch model. This removes the earlier selected-only limitation in code;
+  live Windows verification is still pending.
+- Live mailbox latency probe on 2026-06-24 against vvvv/`AgentHost`:
+  pre-cache repeated `nodeQuery LFO` p50 was `elapsedMs=1929`,
+  `roundTripMs=1898`, `mailboxWaitMs=980`, `processingMs=912`. After adding the
+  bounded `nodeQuery` cache, warm repeated `nodeQuery LFO` p50 dropped to
+  `elapsedMs=134`, `roundTripMs=48`, `mailboxWaitMs=48`, `processingMs=0`.
+  Cold `nodeQuery "Skia Line"` still showed `processingMs=2627` on the first
+  request before cache hits dropped processing to `0`.
+- `bench/run-bench.ps1` could not launch the nested Codex scenario in this
+  desktop shell because the packaged WindowsApps `codex.exe` alias returned
+  `Access is denied`; direct mailbox probes remain usable for bridge timing.
 
 ## Safety Rules
 
