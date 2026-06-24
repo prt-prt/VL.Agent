@@ -47,6 +47,20 @@ pwsh bench/run-bench.ps1 -Scenario bench/scenarios/skia-osc-datavis.md
 pwsh bench/run-bench.ps1 -Project C:\path\to\my-project -CodexArgs '--model','gpt-5-codex'
 ```
 
+## Mailbox Latency Probe
+
+To isolate bridge/mailbox latency from model and MCP overhead, run the direct
+request/result probe while vvvv is running with `AgentHost`:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File bench\run-mailbox-latency.ps1 -AgentDir .agent -Count 20
+```
+
+The first probe op is `nodeQuery`, which is read-only but still exercises the
+live bridge, active canvas, and live compilation resolver. The result summary
+reports elapsed time plus trace fields injected by `CommandProcessor`:
+`mailboxWaitMs`, `processingMs`, and bridge `roundTripMs`.
+
 Each run writes to `bench/runs/` (git-ignored):
 
 - `<timestamp>-<scenario>.log` — full Codex output (the readable transcript)

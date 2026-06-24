@@ -1,2 +1,9 @@
 [mcp_servers.vvvv-agent]
-command = 'C:\Users\3e8\projects\agentic-vl\.codex\vl-mcp-bench\vl-mcp.exe'
+command = 'powershell'
+args = [
+  '-NoProfile',
+  '-ExecutionPolicy',
+  'Bypass',
+  '-File',
+  'C:\Users\3e8\projects\agentic-vl\tools\vl-mcp\dev.ps1'
+]

@@ -187,6 +187,28 @@ defaults where supported.
    coordinates, `experimental=true`, and usually `pauseRuntime=true`. Watch vvvv
    closely; this is not yet a stable editing primitive.
 
+## Command Envelope and Tracing
+
+Live write/resolver tools now submit a versioned request envelope to the mailbox:
+
+```json
+{
+  "schemaVersion": 1,
+  "requestId": "...",
+  "traceId": "...",
+  "op": "nodeQuery",
+  "transport": "fileMailbox",
+  "createdAtUtc": "...",
+  "deadlineMs": 5000,
+  "payload": {}
+}
+```
+
+`CommandProcessor` still accepts the older direct request shape, but new MCP
+requests use the envelope so the same command dispatcher can later be fed by a
+named-pipe or WebSocket transport. Results include trace timing fields such as
+`mailboxWaitMs`, `processingMs`, and `roundTripMs`.
+
 ## Protocol
 
 Implemented methods:

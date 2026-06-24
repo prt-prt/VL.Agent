@@ -103,10 +103,27 @@ Experimental batch operation:
 }
 ```
 
-The first transaction slice supports `dryRun`, `validate`, and batching `setPin`
-ops into one `Confirm(...)`. Structural ops such as `addNode`, `addPad`, and
-`connect` are reported as unsupported until a safe editor mutation path is
-verified.
+The current transaction slice supports `dryRun`, `validate`, batched `setPin`,
+`addNode`, `addPad`, `connect`, selected-target `setBounds`, and first-slice
+`select`. Structural graph edits are still experimental: use `dryRun=true` first
+and treat `partial:true` results as a signal that earlier structural steps may
+have committed before a later failure.
+
+The `CommandProcessor` implementation is split into focused partial files:
+
+- `CommandProcessor.cs` - public process-node surface and frame update loop.
+- `CommandProcessor.Mailbox.cs` - request envelope, mailbox transport, result
+  writing, and trace metadata.
+- `CommandProcessor.Commands.cs` - top-level command handlers.
+- `CommandProcessor.NodeQuery.cs` - live node-browser resolver.
+- `CommandProcessor.GraphNodes.cs` - node/pad creation and alias pin setting.
+- `CommandProcessor.GraphConnect.cs` - connect planning, model endpoint lookup,
+  and link verification.
+- `CommandProcessor.GraphSelection.cs` - selection and bounds edits.
+- `CommandProcessor.GraphEnvironment.cs` - active canvas, type mapping, and
+  deferred paste.
+- `CommandProcessor.LiveValues.cs` - selected live values, coercion,
+  validation diagnostics, and reflection helpers.
 
 `CommandProcessor` can still be dropped into a normal patch for quick tests, but
 that mode is fragile. If the user patch pauses or throws during `Update`, the

@@ -1003,13 +1003,29 @@ internal static class Tools
         var requestsDir = Path.Combine(agentDir, "requests");
         var resultsDir = Path.Combine(agentDir, "results");
         Directory.CreateDirectory(requestsDir);
+        Directory.CreateDirectory(resultsDir);
 
         var id = Guid.NewGuid().ToString("N");
+        var traceId = id;
+        var op = (string?)request["op"] ?? "setPinValue";
+        var createdAtUtc = DateTimeOffset.UtcNow;
+        const int deadlineMs = 5000;
+        var envelope = new JsonObject
+        {
+            ["schemaVersion"] = 1,
+            ["requestId"] = id,
+            ["traceId"] = traceId,
+            ["op"] = op,
+            ["transport"] = "fileMailbox",
+            ["createdAtUtc"] = createdAtUtc.ToString("O"),
+            ["deadlineMs"] = deadlineMs,
+            ["payload"] = request.DeepClone(),
+        };
 
         // Write atomically (temp + rename) so the watcher never sees a partial file.
         var requestPath = Path.Combine(requestsDir, id + ".json");
         var tmp = requestPath + ".tmp";
-        File.WriteAllText(tmp, request.ToJsonString());
+        File.WriteAllText(tmp, envelope.ToJsonString());
         File.Move(tmp, requestPath, overwrite: true);
 
         // Poll for the matching result (~5s). The CommandProcessor applies on the vvvv main loop.
@@ -1028,8 +1044,26 @@ internal static class Tools
             Thread.Sleep(100);
         }
 
-        return "{\"ok\":false,\"error\":\"timed out waiting for vvvv to apply the request. "
-             + "Is AgentHost or CommandProcessor running and pointed at this .agent dir?\"}";
+        var timedOutAtUtc = DateTimeOffset.UtcNow;
+        return new JsonObject
+        {
+            ["ok"] = false,
+            ["error"] = "timed out waiting for vvvv to apply the request. Is AgentHost or CommandProcessor running and pointed at this .agent dir?",
+            ["requestId"] = id,
+            ["traceId"] = traceId,
+            ["op"] = op,
+            ["trace"] = new JsonObject
+            {
+                ["schemaVersion"] = 1,
+                ["envelope"] = true,
+                ["transport"] = "fileMailbox",
+                ["requestFileName"] = id + ".json",
+                ["deadlineMs"] = deadlineMs,
+                ["createdAtUtc"] = createdAtUtc.ToString("O"),
+                ["timedOutAtUtc"] = timedOutAtUtc.ToString("O"),
+                ["roundTripMs"] = (int)Math.Max(0, (timedOutAtUtc - createdAtUtc).TotalMilliseconds),
+            },
+        }.ToJsonString(Json.Indented);
     }
 
 }
