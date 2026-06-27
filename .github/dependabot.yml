@@ -6,16 +6,21 @@ updates:
       interval: weekly
 
   - package-ecosystem: nuget
-    directory: /tools/vl-map
+    directory: /src/VL.Agent
     schedule:
       interval: weekly
 
   - package-ecosystem: nuget
-    directory: /tools/vl-mcp
+    directory: /src/VL.Agent.Map
     schedule:
       interval: weekly
 
   - package-ecosystem: nuget
-    directory: /tools/vl-probe
+    directory: /src/VL.Agent.Mcp
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: nuget
+    directory: /src/VL.Agent.Probe
     schedule:
       interval: weekly

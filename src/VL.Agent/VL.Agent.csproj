@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    vvvv-loaded HDE bridge. Package references make Release builds reproducible
+    without requiring a local vvvv installation on the build machine.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows7.0</TargetFramework>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <OutputPath Condition="'$(Configuration)' == 'Release'">..\..\lib\net8.0-windows7.0\</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="VL.AppServices" Version="2025.7.2" PrivateAssets="all" />
+    <PackageReference Include="VL.HDE" Version="2025.7.2" PrivateAssets="all" />
+    <PackageReference Include="VL.Lang" Version="2021.4.12" PrivateAssets="all" />
+  </ItemGroup>
+
+</Project>

@@ -24,10 +24,10 @@ jobs:
           dotnet-version: 10.0.x
 
       - name: Check packaging scripts
-        run: bash -n deployment/publish-tools.sh
+        run: bash -n scripts/publish-tools.sh
 
       - name: Build vl-probe
-        run: dotnet build tools/vl-probe/vl-probe.csproj -c Release
+        run: dotnet build src/VL.Agent.Probe/VL.Agent.Probe.csproj -c Release
 
       - name: Run smoke test
-        run: DOTNET=dotnet tools/smoke-test.sh
+        run: DOTNET=dotnet tests/smoke-tools.sh

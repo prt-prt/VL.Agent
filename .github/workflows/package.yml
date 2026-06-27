@@ -21,14 +21,24 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 10.0.x
+          dotnet-version: |
+            8.0.x
+            10.0.x
 
       - name: Setup NuGet
         uses: nuget/setup-nuget@v2
 
+      - name: Build vvvv bridge
+        shell: pwsh
+        run: dotnet build src\VL.Agent\VL.Agent.csproj -c Release
+
       - name: Stage bundled tools
         shell: bash
-        run: RID=win-x64 DOTNET=dotnet deployment/publish-tools.sh
+        run: RID=win-x64 DOTNET=dotnet scripts/publish-tools.sh
+
+      - name: Fetch package icon
+        shell: pwsh
+        run: Invoke-WebRequest https://raw.githubusercontent.com/vvvv/PublicContent/master/nugeticon.png -OutFile deployment\nugeticon.png
 
       - name: Pack NuGet
         shell: pwsh
@@ -49,10 +59,12 @@ jobs:
           try {
             $names = $zip.Entries | ForEach-Object { $_.FullName }
             $required = @(
+              "VL.Agent.vl",
               "VL.Agent.HDE.vl",
-              "package/tools/win-x64/vl-mcp.exe",
-              "package/tools/win-x64/vl-map.exe",
-              "package/tools/win-x64/vl-probe.exe",
+              "lib/net8.0-windows7.0/VL.Agent.dll",
+              "tools/win-x64/vl-mcp.exe",
+              "tools/win-x64/vl-map.exe",
+              "tools/win-x64/vl-probe.exe",
               "schemas/graph-transaction.schema.json",
               "docs/README.md"
             )

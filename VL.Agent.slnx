@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/Product/">
+    <Project Path="src/VL.Agent/VL.Agent.csproj" />
+  </Folder>
+  <Folder Name="/Tools/">
+    <Project Path="src/VL.Agent.Map/VL.Agent.Map.csproj" />
+    <Project Path="src/VL.Agent.Mcp/VL.Agent.Mcp.csproj" />
+    <Project Path="src/VL.Agent.Probe/VL.Agent.Probe.csproj" />
+  </Folder>
+</Solution>

@@ -64,11 +64,8 @@ boundary a future named-pipe or WebSocket transport should reuse.
 
 ## Measurement
 
-Use the mailbox latency probe while vvvv is running with `AgentHost`:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File bench\run-mailbox-latency.ps1 -AgentDir .agent -Count 20
-```
+Use the mailbox latency probe from the framework-neutral vvvv agent benchmark
+repository while vvvv is running with `AgentHost`.
 
 The first supported probe op is `nodeQuery`, because it is read-only while still
 exercising the live bridge, active canvas, and live compilation resolver.
@@ -83,7 +80,7 @@ Interpretation:
 
 ### 2026-06-24 Measurements
 
-The full `bench/run-bench.ps1` Skia-line scenario did not start in this Codex
+The full Skia-line scenario did not start in the Codex
 desktop shell because the packaged `codex.exe` app alias returned `Access is
 denied` before spawning the nested agent. The direct mailbox probe did run
 against live vvvv/`AgentHost` and isolated the bridge path.
@@ -96,7 +93,7 @@ After adding a bounded two-minute `nodeQuery` cache keyed by active patch, live
 compilation, query, and limit, repeated warm `nodeQuery LFO` requests completed
 with p50 `elapsedMs=134`, p50 `roundTripMs=48`, p50 `mailboxWaitMs=48`, and p50
 `processingMs=0`. A saved cold-then-warm validation run is in
-`bench/runs/20260624-212043-mailbox-nodeQuery-LFO.summary.json`.
+the original benchmark run archive.
 
 Cold queries can still be expensive: `nodeQuery "Skia Line"` showed a first
 request with `processingMs=2627`, followed by cached requests with
@@ -165,7 +162,7 @@ dialogs, menus, and API gaps.
 
 ## Near-Term Implementation Order
 
-1. Keep gathering saved mailbox latency summaries under `bench/runs/`.
+1. Keep gathering saved mailbox latency summaries in the benchmark repository.
 2. Add pushed command lifecycle events to the internal dispatcher.
 3. Prototype a named-pipe transport that feeds the existing `AgentCommand`
    dispatcher.

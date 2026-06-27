@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://agentic-vl.local/schemas/graph-transaction.schema.json",
-  "title": "agentic-vl GraphTransaction",
+  "$id": "https://github.com/prt-prt/VL.Agent/raw/main/schemas/graph-transaction.schema.json",
+  "title": "VL.Agent GraphTransaction",
   "description": "A batch of vvvv graph operations proposed by an agent and applied by the HDE-side bridge as one logical transaction.",
   "type": "object",
   "additionalProperties": false,

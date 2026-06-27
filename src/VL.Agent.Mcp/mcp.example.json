@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "vl-agent": {
+      "command": "powershell",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "C:\\path\\to\\VL.Agent\\src\\VL.Agent.Mcp\\dev.ps1"
+      ]
+    }
+  }
+}

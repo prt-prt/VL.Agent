@@ -1,43 +1,36 @@
 <?xml version="1.0"?>
 
-<!--
-  Draft NuGet package definition for the eventual community distribution.
-
-  This is intentionally package-facing scaffolding, not yet a publish-ready
-  artifact. See docs/packaging-roadmap.md for the remaining build and runtime
-  decisions.
--->
-<package xmlns="http://schemas.microsoft.com/packaging/2011/10/nuspec.xsd">
+<package xmlns="http://schemas.microsoft.com/packaging/2013/05/nuspec.xsd">
   <metadata>
     <id>VL.Agent</id>
-    <version>0.0.1-alpha</version>
+    <version>0.1.0-alpha</version>
     <title>VL.Agent</title>
-    <authors>Philipp</authors>
-    <projectUrl>https://github.com/prt-prt/agentic-vl</projectUrl>
-    <repository type="git" url="https://github.com/prt-prt/agentic-vl.git" />
+    <authors>Philipp Parteder</authors>
+    <projectUrl>https://github.com/prt-prt/VL.Agent</projectUrl>
+    <repository type="git" url="https://github.com/prt-prt/VL.Agent.git" />
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
-    <description>Agentic development tools for vvvv gamma: HDE editor bridge, MCP server, project indexing, and graph transaction helpers.</description>
-    <tags>VL vvvv gamma HDE MCP agent tools</tags>
+    <description>Agentic development tools for vvvv gamma: an HDE editor bridge, MCP server, project indexer, and undo-integrated graph transactions.</description>
+    <tags>VL vvvv gamma HDE MCP agent</tags>
+    <license type="expression">MIT</license>
+    <icon>icon\nugeticon.png</icon>
     <readme>docs\README.md</readme>
+    <dependencies>
+      <group targetFramework="net8.0-windows7.0">
+        <dependency id="VL.HDE" version="[2025.7.2]" />
+        <dependency id="VL.Skia" version="[2025.7.2]" />
+        <dependency id="VL.CoreLib.Windows" version="[2025.7.2]" />
+      </group>
+    </dependencies>
   </metadata>
   <files>
-    <!-- vvvv-facing entry points -->
-    <file src="..\VL.Agent.HDE.vl" target="" />
-
-    <!-- Runtime bridge source for the current source-reference workflow. -->
-    <file src="..\VL.Agent\**" target="VL.Agent\" exclude="..\VL.Agent\bin\**;..\VL.Agent\obj\**;..\VL.Agent\**\.DS_Store" />
-
-    <!-- Help Browser metadata and future help patches. -->
+    <file src="..\lib\**" target="lib\" exclude="..\lib\**\*.pdb" />
+    <file src="..\*.vl" target="" />
     <file src="..\help\**" target="help\" />
-
-    <!-- Bundled workflow assets. Tool binaries are expected under package\tools once the publish step exists. -->
-    <file src="..\package\**" target="package\" exclude="..\package\**\.DS_Store" />
+    <file src="..\artifacts\tools\**" target="tools\" />
     <file src="..\schemas\**" target="schemas\" />
     <file src="..\examples\graph-transactions\**" target="examples\graph-transactions\" />
-
-    <!-- User-facing documentation. -->
+    <file src="nugeticon.png" target="icon\" />
     <file src="..\README.md" target="docs\" />
-    <file src="..\docs\packaging-roadmap.md" target="docs\" />
     <file src="..\docs\graph-transaction-protocol.md" target="docs\" />
     <file src="..\docs\reference\VL.Agent.md" target="docs\reference\" />
   </files>

@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    vl-mcp — a Model Context Protocol server that exposes the vvvv-agent's
+    intelligence to MCP clients such as Claude Code. Speaks MCP's stdio transport
+    (newline-delimited JSON-RPC 2.0) directly, no SDK dependency. Reuses vl-map's
+    Indexer for project structure.
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework Condition="'$(AgenticVlDev)' == 'true'">net8.0</TargetFramework>
+    <TargetFramework Condition="'$(AgenticVlDev)' != 'true'">net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>vl-mcp</AssemblyName>
+    <RootNamespace>VlMcp</RootNamespace>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\VL.Agent.Map\VL.Agent.Map.csproj" />
+  </ItemGroup>
+
+</Project>

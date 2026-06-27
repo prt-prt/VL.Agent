@@ -6,17 +6,14 @@ obj/
 *.user
 *.suo
 
-# Local reference clones and packaging experiments
-.template/
-
-# Local testbed clone (detached from origin, not tracked here)
-testbed/
-
 # Local validation corpora / external project clones
 test-projects/
 
-# Generated package tool binaries
-/package/tools/*/
+# Generated release artifacts
+/artifacts/
+/lib/
+/deployment/nugeticon.png
+/package/
 
 # Generated codebase-memory graph artifacts
 .codebase-memory/

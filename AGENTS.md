@@ -1,40 +1,29 @@
-# agentic-vl - agent guide
+# VL.Agent agent guide
 
-This repo explores a text-first assistant for vvvv gamma projects. Treat the repo
-as a prototype with a stable read-only analysis layer and a narrow experimental
-live-edit layer.
+This repository is the publishable vvvv library and tool distribution for the
+VL.Agent system. Keep product code, package assets, and implementation tests here;
+framework-neutral agent benchmarks live in their own repository.
 
-## Ground Truth
+## Ground truth
 
 - Use the local `vvvv-*` skills for vvvv concepts and file-format details.
-- Use `docs/research/windows-api-validation-findings.md` for API facts validated against
-  vvvv gamma 7.2.
-- Use `docs/WINDOWS_TESTING.md` as the running checklist for anything that needs
-  a Windows vvvv runtime.
-- vvvv-loaded code targets `net8.0-windows`; standalone tools target `net10.0`.
+- vvvv-loaded code targets `net8.0-windows7.0`; standalone tools target `net10.0`.
+- `VL.Agent.vl`, `VL.Agent.HDE.vl`, and `deployment/VL.Agent.nuspec` are package
+  entry points and must stay aligned.
+- Release builds of `src/VL.Agent/VL.Agent.csproj` write to
+  `lib/net8.0-windows7.0/`.
 
-## Tools
+## Components
 
-- `tools/vl-probe` - metadata-only public API dumper for a vvvv install.
-- `tools/vl-map` - static project indexer for `.vl`, `.cs`, `.csproj`, and `.sdsl`.
-- `tools/vl-mcp` - MCP stdio server exposing:
-  - `vvvv_index_project`
-  - `vvvv_editor_state`
-  - `vvvv_set_pin_value`
-  - `vvvv_apply_graph_transaction`
+- `src/VL.Agent` — HDE/editor bridge nodes.
+- `src/VL.Agent.Mcp` — MCP stdio server.
+- `src/VL.Agent.Map` — static project indexer.
+- `src/VL.Agent.Probe` — metadata-only public API dumper.
+- `src/VL.Agent.Viewer` — static project-graph viewer.
 
 Point MCP clients at the built `vl-mcp.exe`, not `dotnet run`.
 
-## VL.Agent
-
-`VL.Agent` runs inside vvvv and provides:
-
-- `WriteEditorSnapshot`
-- `EditorWatcher`
-- `CommandProcessor`
-- `AgentHost`
-
-Default convention:
+## Runtime convention
 
 ```text
 <project>/.agent/editor-state.json
@@ -42,32 +31,18 @@ Default convention:
 <project>/.agent/results/
 ```
 
-`EditorWatcher` writes live editor state. `CommandProcessor` currently supports
-`setPinValue`, experimental first-slice `graphTransaction` requests, and
-experimental opt-in `paste` requests.
+`EditorWatcher` writes live editor state. `CommandProcessor` supports narrow pin
+updates, graph transactions, and an explicitly experimental paste request.
 
-## Important Safety Finding
+## Safety
 
-Do not re-enable MCP paste casually.
-
-`SessionNodes.Paste(modelSnippet, location)` exists and the clipboard XML shape is
-documented in `docs/research/vvvv-paste-snippet-format.md`, but calling it from
-`CommandProcessor.Update()` can mutate the editor graph while the Skia patch editor
-is rendering. This caused:
-
-```text
-InvalidOperationException: Collection was modified; enumeration operation may not execute.
-```
-
-Future insertion work should run in a proper editor-command context or another
-API boundary that is safe relative to graph rendering.
-
-## Working Principles
+Do not casually expand or re-enable direct paste. Mutating the graph from
+`CommandProcessor.Update()` has raced the Skia editor render loop and caused
+`InvalidOperationException: Collection was modified`.
 
 1. Observe before mutating.
-2. Prefer static tools and editor snapshots for analysis.
+2. Prefer static indexes and editor snapshots for analysis.
 3. Use `CurrentSolution.*.Confirm(...)` for narrow undo-integrated edits.
-4. Do not hand-edit `.vl` XML unless the change is small, conservative, and backed
-   by file-format knowledge.
-5. Keep `README.md`, `docs/SESSION_CONTEXT.md`, `docs/WINDOWS_TESTING.md`, and
-   tool-specific READMEs aligned with the actual verified state.
+4. Do not hand-edit `.vl` XML unless the change is conservative and backed by
+   file-format knowledge.
+5. Update package paths, CI, and docs together when the repository shape changes.

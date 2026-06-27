@@ -1,6 +1,6 @@
 # VL.Agent
 
-Code that runs inside vvvv gamma. This is the live-editor side of `agentic-vl`.
+Code that runs inside vvvv gamma. This is the live-editor side of `VL.Agent`.
 
 ## `VL.Agent`
 
@@ -175,18 +175,12 @@ AgentHost -> .agent/editor-state.json -> vl-mcp -> MCP client
 MCP client -> .agent/requests/*.json -> AgentHost -> .agent/results/*.json
 ```
 
-See `tools/vl-mcp/README.md`.
+See `src/VL.Agent.Mcp/README.md`.
 
 ## Build
 
 ```powershell
-dotnet build VL.Agent\VL.Agent.csproj
-```
-
-If vvvv is installed elsewhere, override `VvvvInstall`:
-
-```powershell
-dotnet build VL.Agent\VL.Agent.csproj -p:VvvvInstall="C:\Program Files\vvvv\vvvv_gamma_7.2-win-x64"
+dotnet build src\VL.Agent\VL.Agent.csproj -c Release
 ```
 
 ## Public API Finding
@@ -195,8 +189,5 @@ dotnet build VL.Agent\VL.Agent.csproj -p:VvvvInstall="C:\Program Files\vvvv\vvvv
 the bridge simple: a node can read `LoadedDocuments`, `CurrentSelection`, and
 compiler messages without wiring those services through user patches.
 
-For the full API validation, see:
-
-```text
-docs/research/windows-api-validation-findings.md
-```
+The bridge compiles against the published `VL.HDE` 2025.7.2 package and is still
+runtime-validated against vvvv gamma 7.2.

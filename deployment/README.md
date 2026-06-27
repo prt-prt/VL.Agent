@@ -1,44 +1,23 @@
-# Deployment
+# Packaging
 
-Release-facing files for the future `VL.Agent` NuGet package.
+The package follows the official `vvvv/VL.NewLibrary.Template` layout. Release
+builds produce the vvvv-loaded assembly under `lib/`; standalone executables are
+staged under `artifacts/tools/<runtime-id>/` and packed as `tools/<runtime-id>/`.
 
-This repo follows the shape of the vvvv library template in
-`.template/VL.NewLibrary.Template`, but keeps publishing conservative while the
-package is still an alpha prototype.
+## Local package build
 
-## Local Package Build
+On Windows:
 
-Stage the Windows tool bundle:
-
-```shell
-DOTNET=/Users/philipp/.dotnet/dotnet deployment/publish-tools.sh
+```powershell
+dotnet build src\VL.Agent\VL.Agent.csproj -c Release
+bash scripts/publish-tools.sh
+Invoke-WebRequest https://raw.githubusercontent.com/vvvv/PublicContent/master/nugeticon.png -OutFile deployment\nugeticon.png
+nuget pack deployment\VL.Agent.nuspec -OutputDirectory artifacts\packages -NoDefaultExcludes
 ```
 
-Pack the draft NuGet package:
+`vl-mcp`, `vl-map`, and `vl-probe` are currently framework-dependent .NET 10
+executables. vvvv-loaded code targets `net8.0-windows7.0` and is built against
+the published `VL.HDE` 2025.7.2 package.
 
-```shell
-nuget pack deployment/VL.Agent.nuspec -OutputDirectory /tmp/agentic-vl-pack-check -NoDefaultExcludes
-```
-
-Expected warning:
-
-```text
-NU5100: The assembly 'package/tools/win-x64/*.dll' is not inside the 'lib' folder
-```
-
-Those DLLs are command-line app payloads for `vl-mcp`, `vl-map`, and `vl-probe`,
-not assemblies intended to be referenced by a consuming vvvv project.
-
-## GitHub Automation
-
-- `.github/workflows/ci.yml` runs the macOS/Linux-safe tool smoke checks on pull
-  requests and pushes to `main`.
-- `.github/workflows/package.yml` stages `win-x64` tool binaries on Windows,
-  packs the NuGet, verifies required package entries, and uploads the `.nupkg` as
-  a workflow artifact.
-- `.github/dependabot.yml` keeps GitHub Actions and NuGet package references
-  visible for updates.
-
-The workflows intentionally do not push to nuget.org yet. Enable publishing only
-after the package ID, license, icon, versioning policy, bridge build mode, and
-framework-dependent-vs-self-contained tool decision are settled.
+The GitHub package workflow builds and verifies a `.nupkg` artifact. It does not
+push to NuGet.org until a `NUGET_KEY` publishing step is deliberately enabled.

@@ -1,0 +1,962 @@
+{
+  "Root": "VL.Agent",
+  "GeneratedBy": "vl-map",
+  "Files": {
+    "Vl": 2,
+    "Cs": 24,
+    "Csproj": 4,
+    "Sdsl": 0
+  },
+  "Documents": [
+    {
+      "Path": "VL.Agent.HDE.vl",
+      "Id": "DtGOw4p6x0yMtJEdJMoD9X",
+      "LanguageVersion": "2025.7.2",
+      "Version": "0.128",
+      "Definitions": [
+        {
+          "Name": "Application",
+          "Kind": "Process"
+        }
+      ],
+      "Nuget": [
+        {
+          "Location": "VL.CoreLib",
+          "Version": "2025.7.2"
+        },
+        {
+          "Location": "VL.HDE",
+          "Version": "2025.7.2"
+        },
+        {
+          "Location": "VL.Skia",
+          "Version": "2025.7.2"
+        },
+        {
+          "Location": "VL.CoreLib.Windows",
+          "Version": "2025.7.2"
+        }
+      ],
+      "Documents": [],
+      "Platform": [
+        "./lib/net8.0-windows7.0/VL.Agent.dll"
+      ],
+      "ReferencedLibraries": [
+        "CoreLibBasics.vl",
+        "VL.Agent.dll",
+        "VL.CoreLib.vl",
+        "VL.HDE.vl",
+        "VL.Skia.vl"
+      ],
+      "Stats": {
+        "Nodes": 13,
+        "Pads": 9,
+        "Links": 30,
+        "Canvases": 2,
+        "Pins": 85
+      },
+      "Graph": {
+        "Nodes": [
+          {
+            "Id": "QlaTXIlXgxNPy7nQvwDUCi",
+            "Name": "Application",
+            "Bounds": "100,100",
+            "Pins": []
+          },
+          {
+            "Id": "FbFB0RjCD4sLvbKqmS5ykS",
+            "Name": "Command",
+            "Category": "HDE",
+            "Dependency": "VL.HDE.vl",
+            "Bounds": "306,870,65,19",
+            "Pins": [
+              {
+                "Id": "H45tiBJu1BvMsWBUOCbUD7",
+                "Name": "Name",
+                "Kind": "InputPin"
+              },
+              {
+                "Id": "LFUkfNNddgIQAjCm32uDTU",
+                "Name": "Visible",
+                "Kind": "InputPin"
+              },
+              {
+                "Id": "HD45I5GYXH4L3zfYycd2Z5",
+                "Name": "Shortcut",
+                "Kind": "InputPin"
+              },
+              {
+                "Id": "EYnzxEIyPLuPzLRdtKqYPL",
+                "Name": "Enabled",
+                "Kind": "InputPin"
+              },
+              {
+                "Id": "QIMgDg9S2WhNdpX1ekN98E",
+                "Name": "On Execute",
+                "Kind": "OutputPin"
+              }
+            ]
+          },
+          {
+            "Id": "JwaoiqLYjfDPxahm8zH3pB",
+            "Name": "|",
+            "Category": "System.BitsAndBytes",
+            "Dependency": "CoreLibBasics.vl",
+            "Bounds": "346,809,25,19",
+            "Pins": [
+              {
+                "Id": "Mn77De0zEdHOI9l5sBohmH",
+                "Name": "Input",
+                "Kind": "InputPin"
+              },
+              {
+                "Id": "HlzSTnBUpRvQJytcMNCI4G",
+                "Name": "Input 2",
+                "Kind": "InputPin"
+              },
+              {
+                "Id": "KB0YDR2Z0BALMj21rcdnD1",
+                "Name": "Output",
+                "Kind": "OutputPin"
+              }
+            ]
+          },
+          {
+            "Id": "QFpxtw2LWNFPqTXIoGB93I",
+            "Name": "ForEach",
+            "Category": "Reactive",
+            "Dependency": "VL.CoreLib.vl",
+            "Bounds": "475,977,183,111",
+            "Pins": [
+              {
+                "Id": "TFAuHObvHMNN9uZR6b86u8",
+                "Name": "Node Context",
+                "Kind": "InputPin"
+              },
+              {
+                "Id": "NL9VJMGWBBUOB3vHfWtJ4a",
+                "Name": "Messages",
+                "Kind": "InputPin"
+              },
+              {
+                "Id": "MmB7mmNRzg3MxEcs3qyNC4",
+                "Name": "Reset",
+                "Kind": "InputPin"
+              },
+              {
+                "Id": "PYI9JPdeCGOPTgKl08clv6",
+                "Name": "Output",
+                "Kind": "OutputPin"
+              },
+              {
+                "Id": "LzgEpMdOTswLIF5GOx7e8G",
+                "Name": "Result",
+                "Kind": "OutputPin"
+              }
+            ]
+          },
+          {
+            "Id": "RQmTCRYIJY3MmoTms37Yd5",
+            "Name": "EnsureWindow",
+            "Category": "HDE.WindowFactory",
+            "Dependency": "VL.HDE.vl",
+            "Bounds": "564,1017,82,26",
+            "Pins": [
+              {
+                "Id": "LLNM7oZJPhFNQzkdM82JFr",
+                "Name": "Input",
+                "Kind": "StateInputPin"
+              },
+              {
+                "Id": "UuKRh5WsUBZOHcUnrAAX03",
+                "Name": "Output",
+                "Kind": "StateOutputPin"
+              }
+            ]
+          },
+          {
+            "Id": "SpceqxT1dYaPU0p4JeIsRO",
+            "Name": "WindowFactory",
+            "Category": "HDE",
+            "Dependency": "VL.HDE.vl",
+            "Bounds": "564,156,579,326",
+            "Pins": [
+              {
+                "Id": "HLmU4sezu86PZYWcrGsYRB",
+                "Name": "Node Context",
+                "Kind": "InputPin"
+              },
+              {
+                "Id": "FRg3ceMsR9eMSwmYz5Elhd",
+                "Name": "Name",
+                "Kind": "InputPin"
+              },
+              {
+                "Id": "SAzXko9tVdGLsNfurfZixX",
+                "Name": "Output",
+                "Kind": "StateOutputPin"
+              },
+              {
+                "Id": "OUnCarQoWlXOaC0X7O11fi",
+                "Name": "Active Window Count",
+                "Kind": "OutputPin"
+              }
+            ]
+          },
+          {
+            "Id": "AvholwyUgZAQCZEBDYaCax",
+            "Name": "SkiaWindow",
+            "Category": "HDE",
+            "Dependency": "VL.HDE.vl",
+            "Bounds": "576,429,185,19",
+            "Pins": [
+              {
+                "Id": "BWZYhhsQcnEMD0d9tR8d00",
+                "Name": "Window Context",
+                "Kind": "InputPin"
+              },
+              {
+                "Id": "RjDYKIdNPuGPqJPPyezFXo",
+                "Name": "Show Hint",
+                "Kind": "InputPin"
+              },
+              {
+                "Id": "NJK7lPpWNFjLt0XmdyvJJK",
+                "Name": "Location",
+                "Kind": "InputPin"
+              },
+              {
+                "Id": "HZn3JwC14VXLHoDbpIRKbO",
+                "Name": "Size",
+                "Kind": "InputPin"
+              },
+              {
+                "Id": "A1SqRvwxJqYPj2XFZP6hG2",
+                "Name": "Input",
+                "Kind": "InputPin"
+              },
+              {
+                "Id": "B9lJGO4qeSKPqK3Nwi1tQf",
+                "Name": "Name",
+                "Kind": "InputPin"
+              },
+              {
+                "Id": "S9Bw7mi8uFZPMLquZOrI5V",
+                "Name": "Color",
+                "Kind": "InputPin"
+              },
+              {
+                "Id": "OggFjNrpqKzNg8xVx4BXgi",
+                "Name": "Space",
+                "Kind": "InputPin"
+              },
+              {
+                "Id": "GheSk9eEzidPHqMfvcasbl",
+                "Name": "Output",
+                "Kind": "OutputPin"
+              }
+            ]
+          },
+          {
+            "Id": "BB97Wf1BuIyOKxjDUXASGR",
+            "Name": "Text",
+            "Category": "Graphics.Skia.Layers.Text",
+            "Dependency": "VL.Skia.vl",
+            "Bounds": "739,299,105,19",
+            "Pins": [
+              {
+                "Id": "RWZy2HGgKdXNOstuMOqbYV",
+                "Name": "Node Context",
+                "Kind": "InputPin"
+              },
+              {
+                "Id": "ToTdVI0A0vcMeAUOOaRtcK",
+                "Name": "Position",
+                "Kind": "InputPin"
+              },
+              {
+                "Id": "BMdzbP6w01mLGONw8t0FLb",
+                "Name": "Size",
+                "Kind": "InputPin"
+              },
+              {
+                "Id": "DHno9uTELCXNLdDnZTeLsz",
+                "Name": "Anchor",
+                "Kind": "InputPin"
+              },
+              {
+                "Id": "Ln8zS8ENMLaNEYjwRYatWO",
+                "Name": "Text",
+                "Kind": "InputPin"
+              },
+              {
+                "Id": "SP3msYGIzaVLlgPSfqkw5V",
+                "Name": "Paint",
+                "Kind": "InputPin"
+              },
+              {
+                "Id": "SLJgrMgPrDTN9iPskq5khY",
+                "Name": "Enabled",
+                "Kind": "InputPin"
+              },
+              {
+                "Id": "Eat0bmAOpMpLNgSEvuFHFk",
+                "Name": "Output",
+                "Kind": "OutputPin"
+              },
+              {
+                "Id": "B7GVYW8TINWPkwJifLgNK1",
+                "Name": "Baseline Position",
+                "Kind": "OutputPin"
+              }
+            ]
+          },
+          {
+            "Id": "O2u5qlj2UpmQXwE5EaEvWu",
+            "Name": "AgentHost",
+            "Category": "Agent",
+            "Dependency": "VL.Agent.dll",
+            "Bounds": "817,179,85,19",
+            "Pins": [
+              {
+                "Id": "Ve6v8CzcoQ6PJE3DKNBedM",
+                "Name": "Context",
+                "Kind": "InputPin"
+              },
+              {
+                "Id": "BSXKrmNPIT0LsQfDaCusdN",
+                "Name": "Path",
+                "Kind": "InputPin"
+              },
+              {
+                "Id": "DitDDi9TzudOPzwdY4egZq",
+                "Name": "Enabled",
+                "Kind": "InputPin"
+              },
+              {
+                "Id": "KnnFKooJuaEMbUqCcSQJTC",
+                "Name": "Agent Dir",
+                "Kind": "OutputPin"
+              },
+              {
+                "Id": "T5v9pEmvpvXQDNsbKDvhnT",
+                "Name": "State Path",
+                "Kind": "OutputPin"
+              },
+              {
+                "Id": "P9hiB3EQ13IOcuYhHIUdMV",
+                "Name": "Watcher Status",
+                "Kind": "OutputPin"
+              },
+              {
+                "Id": "F8GEIBDD3i9N8dfCvVUnNv",
+                "Name": "Command Status",
+                "Kind": "OutputPin"
+              },
+              {
+                "Id": "MIjlei7C5pYNoS2Ra2u5rc",
+                "Name": "Last Result",
+                "Kind": "OutputPin"
+              }
+            ]
+          },
+          {
+            "Id": "KH5YPqfWQmUOj1MGN2f4cs",
+            "Name": "FontAndParagraph",
+            "Category": "Graphics.Skia.Text",
+            "Dependency": "VL.Skia.vl",
+            "Bounds": "936,189,165,19",
+            "Pins": [
+              {
+                "Id": "NKRRF1FITTuM8ZWGXNA2S6",
+                "Name": "Node Context",
+                "Kind": "InputPin"
+              },
+              {
+                "Id": "EAdAcIChzJ0M1shT8YoeA0",
+                "Name": "Input",
+                "Kind": "InputPin"
+              },
+              {
+                "Id": "SsMsrNbfA7iOFODYmhJM8W",
+                "Name": "Family Name",
+                "Kind": "InputPin"
+              },
+              {
+                "Id": "B8mt4ewcSRCPnKSrvcndtj",
+                "Name": "Style",
+                "Kind": "InputPin"
+              },
+              {
+                "Id": "B9D1veu1tgUN9WTSwaGRq9",
+                "Name": "Size",
+                "Kind": "InputPin"
+              },
+              {
+                "Id": "RaWzozhHiwoQDBqETjpTOi",
+                "Name": "Color",
+                "Kind": "InputPin"
+              },
+              {
+                "Id": "OHv56NoExb6O1EJXSFBQ2I",
+                "Name": "Line Height in em",
+                "Kind": "InputPin"
+              },
+              {
+                "Id": "QUsJXwaWcflPGAeyAI2ozz",
+                "Name": "Horizontal Alignment",
+                "Kind": "InputPin"
+              },
+              {
+                "Id": "IiQoiq6OIC2QSgt4K4mb2I",
+                "Name": "Vertical Alignment",
+                "Kind": "InputPin"
+              },
+              {
+                "Id": "Nj0mHF0UD3tMzcNuvOsF38",
+                "Name": "Show Helpers",
+                "Kind": "InputPin"
+              },
+              {
+                "Id": "KyKIBkZdxIuNXupnepVp0J",
+                "Name": "Output",
+                "Kind": "OutputPin"
+              }
+            ]
+          },
+          {
+            "Id": "JAhzLpwMBOYMZDIeyiyhMd",
+            "Name": "Text",
+            "Category": "Graphics.Skia.Layers.Text",
+            "Dependency": "VL.Skia.vl",
+            "Bounds": "882,309,105,19",
+            "Pins": [
+              {
+                "Id": "RoAWSAaq48OLNYIvdWVkYA",
+                "Name": "Node Context",
+                "Kind": "InputPin"
+              },
+              {
+                "Id": "PVaqBht0SLGLIHwA7xAeLM",
+                "Name": "Position",
+                "Kind": "InputPin"
+              },
+              {
+                "Id": "GZbuJEftfa6OmfSY8Jvjfa",
+                "Name": "Size",
+                "Kind": "InputPin"
+              },
+              {
+                "Id": "Dq1cpqAygWHMJ27q06eCy8",
+                "Name": "Anchor",
+                "Kind": "InputPin"
+              },
+              {
+                "Id": "Ae9oClW6b7gQIJXm9HRAZC",
+                "Name": "Text",
+                "Kind": "InputPin"
+              },
+              {
+                "Id": "KBE1eXYTfXsOHVp4qEESqp",
+                "Name": "Paint",
+                "Kind": "InputPin"
+              },
+              {
+                "Id": "P1Cur7ISWfcO9vvZbktLCP",
+                "Name": "Enabled",
+                "Kind": "InputPin"
+              },
+              {
+                "Id": "RabCcv6NKofPMx3GlEElPD",
+                "Name": "Output",
+                "Kind": "OutputPin"
+              },
+              {
+                "Id": "BylG6IdljGaNXOLmybY3qa",
+                "Name": "Baseline Position",
+                "Kind": "OutputPin"
+              }
+            ]
+          },
+          {
+            "Id": "F5Sxh0Hpc3jNI3taByGvta",
+            "Name": "Group",
+            "Category": "Graphics.Skia",
+            "Dependency": "VL.Skia.vl",
+            "Bounds": "862,359,85,19",
+            "Pins": [
+              {
+                "Id": "LsyptprHP9qOZom8CCLhW2",
+                "Name": "Node Context",
+                "Kind": "InputPin"
+              },
+              {
+                "Id": "GrbtLIbPphyQHFwEvlI3rD",
+                "Name": "Input",
+                "Kind": "InputPin"
+              },
+              {
+                "Id": "GgeewZLUhUCM3zdwVIECob",
+                "Name": "Input 2",
+                "Kind": "InputPin"
+              },
+              {
+                "Id": "A6edE3RxcK8NQB2HWRdMUs",
+                "Name": "Input 3",
+                "Kind": "InputPin"
+              },
+              {
+                "Id": "FME49kHrmkcMzmWz6G0yus",
+                "Name": "Debug",
+                "Kind": "InputPin"
+              },
+              {
+                "Id": "PD1mosQ2RAvL2sMupQRuYd",
+                "Name": "Enabled",
+                "Kind": "InputPin"
+              },
+              {
+                "Id": "BvYvSEPVKJpQVP52Srh9Te",
+                "Name": "Output",
+                "Kind": "OutputPin"
+              }
+            ]
+          },
+          {
+            "Id": "Hq6Zk19NJw6OgX0z7CcZwq",
+            "Name": "Text",
+            "Category": "Graphics.Skia.Layers.Text",
+            "Dependency": "VL.Skia.vl",
+            "Bounds": "1026,309,105,19",
+            "Pins": [
+              {
+                "Id": "SZQEhurxVBRMFmnnkiFWg4",
+                "Name": "Node Context",
+                "Kind": "InputPin"
+              },
+              {
+                "Id": "AP33K9e1QetOMCqYzd97ku",
+                "Name": "Position",
+                "Kind": "InputPin"
+              },
+              {
+                "Id": "KpMvwLf6f8AOIOkHRagiXr",
+                "Name": "Size",
+                "Kind": "InputPin"
+              },
+              {
+                "Id": "De06j6JEaMBLv7EfloLUlv",
+                "Name": "Anchor",
+                "Kind": "InputPin"
+              },
+              {
+                "Id": "RjagxSiMzXuPLRD1K7GdSK",
+                "Name": "Text",
+                "Kind": "InputPin"
+              },
+              {
+                "Id": "DLVhYMDdHxCMQ6Nzkiex9K",
+                "Name": "Paint",
+                "Kind": "InputPin"
+              },
+              {
+                "Id": "OPHRfJ0JDAkLRkst7FsBaH",
+                "Name": "Enabled",
+                "Kind": "InputPin"
+              },
+              {
+                "Id": "UWgcacfDMBJNjrdaOiVAcF",
+                "Name": "Output",
+                "Kind": "OutputPin"
+              },
+              {
+                "Id": "MF86pV5fWf4LFMtgmtriip",
+                "Name": "Baseline Position",
+                "Kind": "OutputPin"
+              }
+            ]
+          }
+        ],
+        "Pads": [
+          {
+            "Id": "CmKiit8HlmdOcSBlViimvh",
+            "Comment": "Label for menu entry",
+            "Value": "Agent",
+            "Type": "String",
+            "Bounds": "308,686,95,15"
+          },
+          {
+            "Id": "BLmWfbeNcxdPg2eZWjjWVo",
+            "Comment": "Enabled",
+            "Value": "True",
+            "Type": "Boolean",
+            "Bounds": "384,830,39,39"
+          },
+          {
+            "Id": "DE6VLioJivnL4FUwZlBzyI",
+            "Comment": "Visibility of menu entry",
+            "Value": "True",
+            "Type": "Boolean",
+            "Bounds": "328,709,36,34"
+          },
+          {
+            "Id": "I481xOkdoytMb1SaTjNJJh",
+            "Comment": "Shortcut",
+            "Value": "Alt",
+            "Type": "Keys",
+            "Bounds": "348,768,121,15"
+          },
+          {
+            "Id": "CanuygkQveGP9HZMCmzVDi",
+            "Comment": "Shortcut",
+            "Value": "J",
+            "Type": "Keys",
+            "Bounds": "368,788,121,15"
+          },
+          {
+            "Id": "JsqR4qf5AozMRoTiXFimq3",
+            "Comment": "Name",
+            "Value": "Agent",
+            "Type": "String",
+            "Bounds": "707,80,72,15"
+          },
+          {
+            "Id": "ERChyrFigUTNAviIz1bXzr",
+            "Comment": "Position",
+            "Value": "-0.56, 0",
+            "Type": "Vector2",
+            "Bounds": "741,219,35,28"
+          },
+          {
+            "Id": "DY6ovWqeVZ4P63RddxXNVx",
+            "Comment": "Position",
+            "Value": "-0.56, 0.17",
+            "Type": "Vector2",
+            "Bounds": "884,269,35,28"
+          },
+          {
+            "Id": "Elcp4JZ266NNRR3IIrMKhD",
+            "Comment": "Position",
+            "Value": "-0.78, 0.32",
+            "Type": "Vector2",
+            "Bounds": "1028,269,35,28"
+          }
+        ],
+        "Links": [
+          {
+            "Id": "UVoPhF1ai2JOP3m39racxf",
+            "From": "CmKiit8HlmdOcSBlViimvh",
+            "To": "FbFB0RjCD4sLvbKqmS5ykS",
+            "FromPin": "CmKiit8HlmdOcSBlViimvh",
+            "ToPin": "H45tiBJu1BvMsWBUOCbUD7",
+            "Hidden": false
+          },
+          {
+            "Id": "BkQoKyDbm6IMGs3mSD2MnM",
+            "From": "BLmWfbeNcxdPg2eZWjjWVo",
+            "To": "FbFB0RjCD4sLvbKqmS5ykS",
+            "FromPin": "BLmWfbeNcxdPg2eZWjjWVo",
+            "ToPin": "EYnzxEIyPLuPzLRdtKqYPL",
+            "Hidden": false
+          },
+          {
+            "Id": "TzcaC2CvrdmNlxGLaZh03T",
+            "From": "DE6VLioJivnL4FUwZlBzyI",
+            "To": "FbFB0RjCD4sLvbKqmS5ykS",
+            "FromPin": "DE6VLioJivnL4FUwZlBzyI",
+            "ToPin": "LFUkfNNddgIQAjCm32uDTU",
+            "Hidden": false
+          },
+          {
+            "Id": "TKpFvF9zsgHNdMvo7YmXa1",
+            "From": "I481xOkdoytMb1SaTjNJJh",
+            "To": "JwaoiqLYjfDPxahm8zH3pB",
+            "FromPin": "I481xOkdoytMb1SaTjNJJh",
+            "ToPin": "Mn77De0zEdHOI9l5sBohmH",
+            "Hidden": false
+          },
+          {
+            "Id": "ACnErRVGF7xNO3lyzOs5F9",
+            "From": "CanuygkQveGP9HZMCmzVDi",
+            "To": "JwaoiqLYjfDPxahm8zH3pB",
+            "FromPin": "CanuygkQveGP9HZMCmzVDi",
+            "ToPin": "HlzSTnBUpRvQJytcMNCI4G",
+            "Hidden": false
+          },
+          {
+            "Id": "IN7zhbtuz4tLquwHwdv4J8",
+            "From": "JwaoiqLYjfDPxahm8zH3pB",
+            "To": "FbFB0RjCD4sLvbKqmS5ykS",
+            "FromPin": "KB0YDR2Z0BALMj21rcdnD1",
+            "ToPin": "HD45I5GYXH4L3zfYycd2Z5",
+            "Hidden": false
+          },
+          {
+            "Id": "Qv8h9XEkbcQQCGvJxHMyis",
+            "From": "QFpxtw2LWNFPqTXIoGB93I",
+            "To": "GSLqw6DF3KyNGH1ermxCEp",
+            "FromPin": "T8UiQg678W6Najwf0600uQ",
+            "ToPin": "GSLqw6DF3KyNGH1ermxCEp",
+            "Hidden": true
+          },
+          {
+            "Id": "BngrlgukRztLFAMtziFHOI",
+            "From": "U3pscNtbgiyOXJl9ByHnjZ",
+            "To": "QFpxtw2LWNFPqTXIoGB93I",
+            "FromPin": "U3pscNtbgiyOXJl9ByHnjZ",
+            "ToPin": "VB6HSiRrZODQX749POVqZO",
+            "Hidden": true
+          },
+          {
+            "Id": "KSqrwe0TOwKP1cjw5S70gG",
+            "From": "FbFB0RjCD4sLvbKqmS5ykS",
+            "To": "QFpxtw2LWNFPqTXIoGB93I",
+            "FromPin": "QIMgDg9S2WhNdpX1ekN98E",
+            "ToPin": "NL9VJMGWBBUOB3vHfWtJ4a",
+            "Hidden": false
+          },
+          {
+            "Id": "O0ZV8gFcdcXN6XKWSlLUuE",
+            "From": "GSLqw6DF3KyNGH1ermxCEp",
+            "To": "U3pscNtbgiyOXJl9ByHnjZ",
+            "FromPin": "GSLqw6DF3KyNGH1ermxCEp",
+            "ToPin": "U3pscNtbgiyOXJl9ByHnjZ",
+            "Hidden": false
+          },
+          {
+            "Id": "D2yiaeML5qWPi43L4EUoq1",
+            "From": "SpceqxT1dYaPU0p4JeIsRO",
+            "To": "RTC8EDUrWq4OAbxWj44VpR",
+            "FromPin": "DtfoDjqwuImNB8Lra0q5Kw",
+            "ToPin": "RTC8EDUrWq4OAbxWj44VpR",
+            "Hidden": true
+          },
+          {
+            "Id": "FU11IHnmk1HQGpLjNFVN5w",
+            "From": "NB9q1UAGtUwPAHVSHy0krE",
+            "To": "SpceqxT1dYaPU0p4JeIsRO",
+            "FromPin": "NB9q1UAGtUwPAHVSHy0krE",
+            "ToPin": "Nadpaue9KggOdhm23ngePV",
+            "Hidden": true
+          },
+          {
+            "Id": "TTL6m7mxIl1Ni5ogdiwuYi",
+            "From": "RTC8EDUrWq4OAbxWj44VpR",
+            "To": "AvholwyUgZAQCZEBDYaCax",
+            "FromPin": "RTC8EDUrWq4OAbxWj44VpR",
+            "ToPin": "BWZYhhsQcnEMD0d9tR8d00",
+            "Hidden": false
+          },
+          {
+            "Id": "H04YW4RokmvOrjsB6j0tfo",
+            "From": "AvholwyUgZAQCZEBDYaCax",
+            "To": "NB9q1UAGtUwPAHVSHy0krE",
+            "FromPin": "GheSk9eEzidPHqMfvcasbl",
+            "ToPin": "NB9q1UAGtUwPAHVSHy0krE",
+            "Hidden": false
+          },
+          {
+            "Id": "FHHgeC8ZIcmNp3eRep1yKg",
+            "From": "JsqR4qf5AozMRoTiXFimq3",
+            "To": "AvholwyUgZAQCZEBDYaCax",
+            "FromPin": "JsqR4qf5AozMRoTiXFimq3",
+            "ToPin": "B9lJGO4qeSKPqK3Nwi1tQf",
+            "Hidden": false
+          },
+          {
+            "Id": "IO6QHXLbiACMyJeJ1LUdOF",
+            "From": "JsqR4qf5AozMRoTiXFimq3",
+            "To": "SpceqxT1dYaPU0p4JeIsRO",
+            "FromPin": "JsqR4qf5AozMRoTiXFimq3",
+            "ToPin": "FRg3ceMsR9eMSwmYz5Elhd",
+            "Hidden": false
+          },
+          {
+            "Id": "FNzBA4KRJCOLgpWXWnbJYG",
+            "From": "O2u5qlj2UpmQXwE5EaEvWu",
+            "To": "BB97Wf1BuIyOKxjDUXASGR",
+            "FromPin": "P9hiB3EQ13IOcuYhHIUdMV",
+            "ToPin": "Ln8zS8ENMLaNEYjwRYatWO",
+            "Hidden": false
+          },
+          {
+            "Id": "D29up5hGENUQMQMXsyAxOT",
+            "From": "KH5YPqfWQmUOj1MGN2f4cs",
+            "To": "BB97Wf1BuIyOKxjDUXASGR",
+            "FromPin": "KyKIBkZdxIuNXupnepVp0J",
+            "ToPin": "SP3msYGIzaVLlgPSfqkw5V",
+            "Hidden": false
+          },
+          {
+            "Id": "UNm3OPy52gyOZ58zRJn3ID",
+            "From": "ERChyrFigUTNAviIz1bXzr",
+            "To": "BB97Wf1BuIyOKxjDUXASGR",
+            "FromPin": "ERChyrFigUTNAviIz1bXzr",
+            "ToPin": "ToTdVI0A0vcMeAUOOaRtcK",
+            "Hidden": false
+          },
+          {
+            "Id": "RLwgSNgb0OLPddhfvuVjKo",
+            "From": "JAhzLpwMBOYMZDIeyiyhMd",
+            "To": "F5Sxh0Hpc3jNI3taByGvta",
+            "FromPin": "RabCcv6NKofPMx3GlEElPD",
+            "ToPin": "GgeewZLUhUCM3zdwVIECob",
+            "Hidden": false
+          },
+          {
+            "Id": "KSfkkGbLCG1N4kLMypDENc",
+            "From": "BB97Wf1BuIyOKxjDUXASGR",
+            "To": "F5Sxh0Hpc3jNI3taByGvta",
+            "FromPin": "Eat0bmAOpMpLNgSEvuFHFk",
+            "ToPin": "GrbtLIbPphyQHFwEvlI3rD",
+            "Hidden": false
+          },
+          {
+            "Id": "LNxargE7oKROGvQbwXy8I0",
+            "From": "F5Sxh0Hpc3jNI3taByGvta",
+            "To": "AvholwyUgZAQCZEBDYaCax",
+            "FromPin": "BvYvSEPVKJpQVP52Srh9Te",
+            "ToPin": "A1SqRvwxJqYPj2XFZP6hG2",
+            "Hidden": false
+          },
+          {
+            "Id": "HS4mVzR1lOOO9LIhEcGKEn",
+            "From": "O2u5qlj2UpmQXwE5EaEvWu",
+            "To": "JAhzLpwMBOYMZDIeyiyhMd",
+            "FromPin": "F8GEIBDD3i9N8dfCvVUnNv",
+            "ToPin": "Ae9oClW6b7gQIJXm9HRAZC",
+            "Hidden": false
+          },
+          {
+            "Id": "CS0s3IMB4IBOBCpWL5Pfqg",
+            "From": "KH5YPqfWQmUOj1MGN2f4cs",
+            "To": "JAhzLpwMBOYMZDIeyiyhMd",
+            "FromPin": "KyKIBkZdxIuNXupnepVp0J",
+            "ToPin": "KBE1eXYTfXsOHVp4qEESqp",
+            "Hidden": false
+          },
+          {
+            "Id": "HeliTatFNchPEgzyyAQZPe",
+            "From": "DY6ovWqeVZ4P63RddxXNVx",
+            "To": "JAhzLpwMBOYMZDIeyiyhMd",
+            "FromPin": "DY6ovWqeVZ4P63RddxXNVx",
+            "ToPin": "PVaqBht0SLGLIHwA7xAeLM",
+            "Hidden": false
+          },
+          {
+            "Id": "GXUyI4zLFiYOGc81lD7TEU",
+            "From": "Elcp4JZ266NNRR3IIrMKhD",
+            "To": "Hq6Zk19NJw6OgX0z7CcZwq",
+            "FromPin": "Elcp4JZ266NNRR3IIrMKhD",
+            "ToPin": "AP33K9e1QetOMCqYzd97ku",
+            "Hidden": false
+          },
+          {
+            "Id": "MfdnaPs4qauLHZveWLEThy",
+            "From": "Hq6Zk19NJw6OgX0z7CcZwq",
+            "To": "F5Sxh0Hpc3jNI3taByGvta",
+            "FromPin": "UWgcacfDMBJNjrdaOiVAcF",
+            "ToPin": "A6edE3RxcK8NQB2HWRdMUs",
+            "Hidden": false
+          },
+          {
+            "Id": "CFURpQfK5ALM58gPb7hYbj",
+            "From": "O2u5qlj2UpmQXwE5EaEvWu",
+            "To": "Hq6Zk19NJw6OgX0z7CcZwq",
+            "FromPin": "MIjlei7C5pYNoS2Ra2u5rc",
+            "ToPin": "RjagxSiMzXuPLRD1K7GdSK",
+            "Hidden": false
+          },
+          {
+            "Id": "FAuI8qyl3C3MlpkSXcZ62v",
+            "From": "KH5YPqfWQmUOj1MGN2f4cs",
+            "To": "Hq6Zk19NJw6OgX0z7CcZwq",
+            "FromPin": "KyKIBkZdxIuNXupnepVp0J",
+            "ToPin": "DLVhYMDdHxCMQ6Nzkiex9K",
+            "Hidden": false
+          }
+        ]
+      },
+      "Warnings": []
+    },
+    {
+      "Path": "VL.Agent.vl",
+      "Id": "EWHWcwf3oBvPnhn254YyBa",
+      "LanguageVersion": "2025.7.2",
+      "Version": "0.128",
+      "Definitions": [
+        {
+          "Name": "Application",
+          "Kind": "Process"
+        }
+      ],
+      "Nuget": [
+        {
+          "Location": "VL.CoreLib",
+          "Version": "2025.7.2"
+        }
+      ],
+      "Documents": [],
+      "Platform": [
+        "./lib/net8.0-windows7.0/VL.Agent.dll"
+      ],
+      "ReferencedLibraries": [],
+      "Stats": {
+        "Nodes": 1,
+        "Pads": 0,
+        "Links": 0,
+        "Canvases": 2,
+        "Pins": 0
+      },
+      "Graph": {
+        "Nodes": [
+          {
+            "Id": "GzS10oTkIGnMGZknNaV2y2",
+            "Name": "Application",
+            "Bounds": "100,100",
+            "Pins": []
+          }
+        ],
+        "Pads": [],
+        "Links": []
+      },
+      "Warnings": []
+    }
+  ],
+  "Packages": [
+    {
+      "Location": "VL.CoreLib",
+      "Versions": [
+        "2025.7.2"
+      ],
+      "DocumentCount": 2,
+      "VersionConflict": false
+    },
+    {
+      "Location": "VL.CoreLib.Windows",
+      "Versions": [
+        "2025.7.2"
+      ],
+      "DocumentCount": 1,
+      "VersionConflict": false
+    },
+    {
+      "Location": "VL.HDE",
+      "Versions": [
+        "2025.7.2"
+      ],
+      "DocumentCount": 1,
+      "VersionConflict": false
+    },
+    {
+      "Location": "VL.Skia",
+      "Versions": [
+        "2025.7.2"
+      ],
+      "DocumentCount": 1,
+      "VersionConflict": false
+    }
+  ],
+  "DocumentEdges": [],
+  "Warnings": []
+}
