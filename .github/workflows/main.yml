@@ -3,13 +3,16 @@
 
 name: push_nuget
 
-# on push on main
 on:
-  push:
-    branches:
-      - main
-    paths-ignore:
-      - README.md
+  workflow_dispatch:
+
+# on push on main
+# on:
+#  push:
+#    branches:
+#      - main
+#    paths-ignore:
+#      - README.md
 
 jobs:
   build:
