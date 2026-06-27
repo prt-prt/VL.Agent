@@ -84,7 +84,7 @@ jobs:
           }
 
       - name: Upload package artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: VL.Agent-nupkg
           path: artifacts/*.nupkg
