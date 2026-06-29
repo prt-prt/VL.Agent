@@ -1,11 +1,14 @@
 # VL.Agent
 
-Agentic development infrastructure for
+Agentic development prototype for
 [vvvv gamma](https://vvvv.org/): live HDE/editor context, static project indexing,
 MCP tools, and narrow undo-integrated graph transactions.
 
-The read-only analysis layer is the stable baseline. Live graph mutation remains
-experimental and is intentionally routed through the HDE runtime.
+
+## Getting started
+
+- **In vvvv:** install the package (clone repo for now, Nuget Distribution is still WIP) and reference `VL.Agent.HDE.vl` to run the bridge
+- **MCP server:** build and connect `vl-mcp`. See `src/VL.Agent.Mcp/README.md`.
 
 ## Repository layout
 
