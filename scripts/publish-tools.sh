@@ -5,7 +5,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DOTNET="${DOTNET:-dotnet}"
 RID="${RID:-win-x64}"
 CONFIGURATION="${CONFIGURATION:-Release}"
-SELF_CONTAINED="${SELF_CONTAINED:-false}"
+SELF_CONTAINED="${SELF_CONTAINED:-true}"
 PACKAGE_TOOLS_DIR="${PACKAGE_TOOLS_DIR:-$ROOT/artifacts/tools}"
 
 TOOLS=(vl-map vl-mcp vl-probe)

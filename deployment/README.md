@@ -15,9 +15,11 @@ Invoke-WebRequest https://raw.githubusercontent.com/vvvv/PublicContent/master/nu
 nuget pack deployment\VL.Agent.nuspec -OutputDirectory artifacts\packages -NoDefaultExcludes
 ```
 
-`vl-mcp`, `vl-map`, and `vl-probe` are currently framework-dependent .NET 10
-executables. vvvv-loaded code targets `net8.0-windows7.0` and is built against
-the published `VL.HDE` 2025.7.2 package.
+`vl-mcp`, `vl-map`, and `vl-probe` are published as self-contained Windows x64
+executables, so the alpha artifact does not require a separate .NET 10 runtime.
+vvvv-loaded code targets `net8.0-windows7.0` and is built against the published
+`VL.HDE` 2025.7.2 package.
 
-The GitHub package workflow builds and verifies a `.nupkg` artifact. It does not
-push to NuGet.org until a `NUGET_KEY` publishing step is deliberately enabled.
+The GitHub package workflow builds, unpacks, and executes the bundled tools from
+the `.nupkg`, then uploads it together with `Install-VL.Agent.ps1` as the
+`VL.Agent-alpha` artifact. It does not push to NuGet.org.

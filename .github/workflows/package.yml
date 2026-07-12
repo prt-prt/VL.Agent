@@ -2,6 +2,15 @@ name: package_nuget_artifact
 
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/package.yml"
+      - "deployment/**"
+      - "scripts/**"
+      - "setup/**"
+      - "src/**"
+      - "VL.Agent.vl"
+      - "VL.Agent.HDE.vl"
   push:
     tags:
       - "v*"
@@ -28,13 +37,39 @@ jobs:
       - name: Setup NuGet
         uses: nuget/setup-nuget@v2
 
+      - name: Cache vvvv 7.2 reference distribution
+        id: cache-vvvv
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}\vvvv_gamma_7.2-win-x64.zip
+          key: vvvv-gamma-7.2-win-x64-build-40001
+
+      - name: Download vvvv 7.2 reference distribution
+        if: steps.cache-vvvv.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          Invoke-WebRequest `
+            https://teamcity.vvvv.org/guestAuth/app/rest/builds/id:40001/artifacts/content/vvvv_gamma_7.2-win-x64.zip `
+            -OutFile "$env:RUNNER_TEMP\vvvv_gamma_7.2-win-x64.zip"
+
+      - name: Extract vvvv reference assemblies
+        shell: pwsh
+        run: |
+          $destination = Join-Path $env:RUNNER_TEMP "vvvv-7.2"
+          Expand-Archive "$env:RUNNER_TEMP\vvvv_gamma_7.2-win-x64.zip" $destination
+          $vlLang = Get-ChildItem $destination -Recurse -Filter VL.Lang.dll | Select-Object -First 1
+          if (-not $vlLang) {
+            throw "The official vvvv archive does not contain VL.Lang.dll."
+          }
+          "VVVV_INSTALL_DIR=$($vlLang.DirectoryName)" >> $env:GITHUB_ENV
+
       - name: Build vvvv bridge
         shell: pwsh
-        run: dotnet build src\VL.Agent\VL.Agent.csproj -c Release
+        run: dotnet build src\VL.Agent\VL.Agent.csproj -c Release -p:VvvvInstallDir="$env:VVVV_INSTALL_DIR"
 
       - name: Stage bundled tools
         shell: bash
-        run: RID=win-x64 DOTNET=dotnet scripts/publish-tools.sh
+        run: RID=win-x64 DOTNET=dotnet SELF_CONTAINED=true scripts/publish-tools.sh
 
       - name: Fetch package icon
         shell: pwsh
@@ -44,7 +79,8 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force artifacts | Out-Null
-          nuget pack deployment\VL.Agent.nuspec -OutputDirectory artifacts -NoDefaultExcludes
+          $version = "0.1.0-alpha.$env:GITHUB_RUN_NUMBER"
+          nuget pack deployment\VL.Agent.nuspec -Version $version -OutputDirectory artifacts -NoDefaultExcludes
 
       - name: Verify package contents
         shell: pwsh
@@ -65,8 +101,13 @@ jobs:
               "tools/win-x64/vl-mcp.exe",
               "tools/win-x64/vl-map.exe",
               "tools/win-x64/vl-probe.exe",
+              "tools/win-x64/hostfxr.dll",
+              "tools/win-x64/hostpolicy.dll",
               "schemas/graph-transaction.schema.json",
-              "docs/README.md"
+              "docs/README.md",
+              "setup/README.md",
+              "setup/Install-VL.Agent.ps1",
+              "setup/Start-VL.Agent.ps1"
             )
 
             foreach ($entry in $required) {
@@ -83,9 +124,61 @@ jobs:
             $zip.Dispose()
           }
 
+      - name: Verify packed self-contained tools
+        shell: pwsh
+        run: |
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $package = Get-ChildItem artifacts\*.nupkg | Select-Object -First 1
+          $unpack = Join-Path $env:RUNNER_TEMP "vl-agent-package"
+          [System.IO.Compression.ZipFile]::ExtractToDirectory($package.FullName, $unpack)
+
+          $request = '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
+          $response = $request | & "$unpack\tools\win-x64\vl-mcp.exe"
+          if ($LASTEXITCODE -ne 0 -or $response -notmatch 'vvvv_apply_graph_transaction') {
+            throw "Packed vl-mcp failed its tools/list check."
+          }
+
+          & "$unpack\tools\win-x64\vl-map.exe" --project . --out "$env:RUNNER_TEMP\vl-map.json"
+          if ($LASTEXITCODE -ne 0 -or -not (Test-Path "$env:RUNNER_TEMP\vl-map.json")) {
+            throw "Packed vl-map failed its project indexing check."
+          }
+
+          $emptyInstall = Join-Path $env:RUNNER_TEMP "empty-vvvv-install"
+          New-Item -ItemType Directory -Force $emptyInstall | Out-Null
+          & "$unpack\tools\win-x64\vl-probe.exe" --install $emptyInstall --out "$env:RUNNER_TEMP\probe-output"
+          if ($LASTEXITCODE -ne 0) {
+            throw "Packed vl-probe failed to start."
+          }
+
+      - name: Verify clean-install bootstrap
+        shell: pwsh
+        run: |
+          $package = Get-ChildItem artifacts\*.nupkg | Select-Object -First 1
+          $repository = Join-Path $env:RUNNER_TEMP "clean-vvvv-nugets"
+
+          [scriptblock]::Create((Get-Content setup\Install-VL.Agent.ps1 -Raw)) | Out-Null
+          [scriptblock]::Create((Get-Content setup\Start-VL.Agent.ps1 -Raw)) | Out-Null
+          & setup\Install-VL.Agent.ps1 -PackagePath $package.FullName -PackageRepository $repository
+
+          $installed = Join-Path $repository "VL.Agent"
+          $config = Get-Content (Join-Path $installed "vl-agent.mcp.json") -Raw | ConvertFrom-Json
+          if (-not (Test-Path $config.mcpServers.'vl-agent'.command -PathType Leaf)) {
+            throw "Installer generated an invalid MCP command path."
+          }
+
+      - name: Write package checksum
+        shell: pwsh
+        run: |
+          $package = Get-ChildItem artifacts\*.nupkg | Select-Object -First 1
+          $hash = (Get-FileHash $package.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  $($package.Name)" | Set-Content "$($package.FullName).sha256"
+
       - name: Upload package artifact
         uses: actions/upload-artifact@v4
         with:
-          name: VL.Agent-nupkg
-          path: artifacts/*.nupkg
+          name: VL.Agent-alpha
+          path: |
+            artifacts/*.nupkg
+            artifacts/*.sha256
+            setup/Install-VL.Agent.ps1
           if-no-files-found: error

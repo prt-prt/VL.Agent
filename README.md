@@ -7,7 +7,8 @@ MCP tools, and narrow undo-integrated graph transactions.
 
 ## Getting started
 
-- **In vvvv:** install the package (clone repo for now, Nuget Distribution is still WIP) and reference `VL.Agent.HDE.vl` to run the bridge
+- **CI alpha:** download the `VL.Agent-alpha` artifact from the package workflow and follow `setup/README.md`.
+- **In vvvv:** install the package and open `VL.Agent.HDE.vl` to run the bridge.
 - **MCP server:** build and connect `vl-mcp`. See `src/VL.Agent.Mcp/README.md`.
 
 ## Repository layout
@@ -22,6 +23,7 @@ MCP tools, and narrow undo-integrated graph transactions.
 - `schemas/` and `examples/` — graph-transaction contract and payloads.
 - `help/` — vvvv Help Browser content.
 - `deployment/` and `scripts/` — NuGet definition and release tooling.
+- `setup/` — clean-install bootstrap and vvvv launcher for CI alpha artifacts.
 - `tests/` — cross-platform tool smoke tests; Windows runtime checks belong here.
 
 ## License

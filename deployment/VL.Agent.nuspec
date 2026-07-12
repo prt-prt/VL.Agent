@@ -26,9 +26,10 @@
     <file src="..\lib\**" target="lib\" exclude="..\lib\**\*.pdb" />
     <file src="..\*.vl" target="" />
     <file src="..\help\**" target="help\" />
-    <file src="..\artifacts\tools\**" target="tools\" />
+    <file src="..\artifacts\tools\**" target="tools\" exclude="..\artifacts\tools\**\*.pdb" />
     <file src="..\schemas\**" target="schemas\" />
     <file src="..\examples\graph-transactions\**" target="examples\graph-transactions\" />
+    <file src="..\setup\**" target="setup\" />
     <file src="nugeticon.png" target="icon\" />
     <file src="..\README.md" target="docs\" />
     <file src="..\docs\graph-transaction-protocol.md" target="docs\" />

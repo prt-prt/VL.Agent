@@ -38,6 +38,10 @@ corrupts the JSON-RPC stream):
 }
 ```
 
+For a clean Windows/vvvv installation, prefer the CI alpha artifact and the
+installer in `setup/README.md`. It contains a self-contained `vl-mcp.exe` and
+generates this configuration with the correct absolute command path.
+
 ## Runtime convention
 
 Launch the client from the vvvv project directory. By default the server reads

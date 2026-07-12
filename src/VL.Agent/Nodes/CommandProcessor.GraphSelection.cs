@@ -1,3 +1,5 @@
+extern alias VLCore;
+
 using System.Text.Json;
 using System.Drawing;
 using System.Collections;
@@ -74,7 +76,7 @@ public partial class CommandProcessor
             if (channel is null)
                 return (false, "selection channel is not available");
 
-            channel.Value = VL.Lib.Collections.Spread.Create(items.ToArray());
+            channel.Value = VLCore::VL.Lib.Collections.Spread.Create(items.ToArray());
             return (true, $"selected {items.Count} element(s)");
         }
         catch (Exception ex)

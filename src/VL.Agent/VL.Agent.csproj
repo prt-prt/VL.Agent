@@ -17,9 +17,23 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="VL.Core" Version="2025.7.2" PrivateAssets="all" Aliases="global,VLCore" />
     <PackageReference Include="VL.AppServices" Version="2025.7.2" PrivateAssets="all" />
     <PackageReference Include="VL.HDE" Version="2025.7.2" PrivateAssets="all" />
-    <PackageReference Include="VL.Lang" Version="2021.4.12" PrivateAssets="all" />
   </ItemGroup>
+
+  <!-- VL.HDE's NuGet assumes the matching vvvv host supplies VL.Lang. -->
+  <!-- CI sets VvvvInstallDir from the official portable 7.2 distribution. -->
+  <ItemGroup Condition="'$(VvvvInstallDir)' != ''">
+    <Reference Include="VL.Lang">
+      <HintPath>$(VvvvInstallDir)\VL.Lang.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <Target Name="RequireVvvvReferenceAssemblies" BeforeTargets="ResolveReferences"
+          Condition="'$(VvvvInstallDir)' == '' Or !Exists('$(VvvvInstallDir)\VL.Lang.dll')">
+    <Error Text="Set VvvvInstallDir to a vvvv gamma 7.2 directory containing VL.Lang.dll." />
+  </Target>
 
 </Project>
