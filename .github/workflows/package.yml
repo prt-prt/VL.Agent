@@ -12,6 +12,8 @@ on:
       - "VL.Agent.vl"
       - "VL.Agent.HDE.vl"
   push:
+    branches:
+      - "codex/**"
     tags:
       - "v*"
 
