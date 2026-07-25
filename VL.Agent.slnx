@@ -7,4 +7,8 @@
     <Project Path="src/VL.Agent.Mcp/VL.Agent.Mcp.csproj" />
     <Project Path="src/VL.Agent.Probe/VL.Agent.Probe.csproj" />
   </Folder>
+  <Folder Name="/Tests/">
+    <Project Path="tests/VL.Agent.PinProbe.Tests/VL.Agent.PinProbe.Tests.csproj" />
+    <Project Path="tests/VL.Agent.Verification.Tests/VL.Agent.Verification.Tests.csproj" />
+  </Folder>
 </Solution>

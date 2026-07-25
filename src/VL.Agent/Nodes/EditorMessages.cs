@@ -8,12 +8,25 @@ internal static class EditorMessages
 {
     private static readonly object Sync = new();
     private static readonly Dictionary<string, Cache> Caches = [];
+    private static long _compilerRevision;
 
     public static IReadOnlyList<object> LatestCompiler()
-        => Latest("compiler", API.LatestMessagesFromCompiler);
+        => LatestWithRevision("compiler", API.LatestMessagesFromCompiler).Messages;
 
     public static IReadOnlyList<object> LatestFromAllRuntimes()
-        => Latest("runtimes", API.LatestMessagesFromAllRuntimes);
+        => LatestWithRevision("runtimes", API.LatestMessagesFromAllRuntimes).Messages;
+
+    public static (long Revision, CompilerDiagnostic[] Diagnostics) CompilerSnapshot()
+    {
+        var snapshot = LatestWithRevision("compiler", API.LatestMessagesFromCompiler);
+        var diagnostics = snapshot.Messages
+            .Select(message => new CompilerDiagnostic(
+                MessageSeverity(message),
+                MessageWhat(message) ?? "",
+                MessageWhy(message) ?? ""))
+            .ToArray();
+        return (snapshot.Revision, diagnostics);
+    }
 
     public static string MessageSeverity(object message)
         => (ReadMember(message, "Severity") ?? ReadMember(message, "Type"))?.ToString() ?? "";
@@ -24,27 +37,37 @@ internal static class EditorMessages
     public static string? MessageWhy(object message)
         => ReadMember(message, "Why")?.ToString();
 
-    private static IReadOnlyList<object> Latest(string key, object? source)
+    private static (IReadOnlyList<object> Messages, long Revision) LatestWithRevision(
+        string key,
+        object? source)
     {
-        if (source is null) return [];
+        if (source is null) return ([], 0);
 
         var value = ReadMember(source, "Value");
-        if (value is not null) return ToObjects(value);
-
         lock (Sync)
         {
             if (!Caches.TryGetValue(key, out var cache) || !ReferenceEquals(cache.Source, source))
             {
                 cache?.Dispose();
-                cache = Subscribe(source);
+                if (key == "compiler")
+                    Interlocked.Increment(ref _compilerRevision);
+                cache = Subscribe(
+                    source,
+                    key == "compiler"
+                        ? () => Interlocked.Increment(ref _compilerRevision)
+                        : null);
                 Caches[key] = cache;
             }
 
-            return cache.Observer.Latest;
+            return (
+                value is not null ? ToObjects(value) : cache.Observer.Latest,
+                key == "compiler"
+                    ? Volatile.Read(ref _compilerRevision)
+                    : cache.Observer.Revision);
         }
     }
 
-    private static Cache Subscribe(object source)
+    private static Cache Subscribe(object source, Action? onNext)
     {
         var observableType = source.GetType()
             .GetInterfaces()
@@ -55,7 +78,9 @@ internal static class EditorMessages
             return new Cache(source, EmptyObserver.Instance, null);
 
         var elementType = observableType.GetGenericArguments()[0];
-        var observer = (ILatestObserver)Activator.CreateInstance(typeof(LatestObserver<>).MakeGenericType(elementType))!;
+        var observer = (ILatestObserver)Activator.CreateInstance(
+            typeof(LatestObserver<>).MakeGenericType(elementType),
+            [onNext])!;
         var subscription = (IDisposable?)observableType.GetMethod(nameof(IObservable<object>.Subscribe))!
             .Invoke(source, [observer]);
 
@@ -92,24 +117,36 @@ internal static class EditorMessages
     private interface ILatestObserver
     {
         IReadOnlyList<object> Latest { get; }
+        long Revision { get; }
     }
 
     private sealed class LatestObserver<T> : IObserver<T>, ILatestObserver
     {
+        private readonly Action? _onNext;
         private object[] _latest = [];
+        private long _revision;
+
+        public LatestObserver(Action? onNext) => _onNext = onNext;
 
         public IReadOnlyList<object> Latest => _latest;
+        public long Revision => Volatile.Read(ref _revision);
 
         public void OnCompleted() { }
 
         public void OnError(Exception error) { }
 
-        public void OnNext(T value) => _latest = ToObjects(value);
+        public void OnNext(T value)
+        {
+            _latest = ToObjects(value);
+            Interlocked.Increment(ref _revision);
+            _onNext?.Invoke();
+        }
     }
 
     private sealed class EmptyObserver : ILatestObserver
     {
         public static readonly EmptyObserver Instance = new();
         public IReadOnlyList<object> Latest => [];
+        public long Revision => 0;
     }
 }

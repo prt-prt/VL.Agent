@@ -32,7 +32,8 @@ Point MCP clients at the built `vl-mcp.exe`, not `dotnet run`.
 ```
 
 `EditorWatcher` writes live editor state. `CommandProcessor` supports narrow pin
-updates, graph transactions, and an explicitly experimental paste request.
+updates, graph transactions, a read-only multi-frame pin value probe, and an
+explicitly experimental paste request.
 
 ## Safety
 

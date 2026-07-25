@@ -18,8 +18,15 @@ namespace VL.Agent;
 /// <see cref="ISolution"/> API on the main loop, and writes a matching result to
 /// <c>&lt;project&gt;/.agent/results/</c>.
 /// <para>
-/// v1 supports the <c>setPinValue</c> op:
+/// Ops: <c>setPinValue</c>, <c>openDocument</c>, <c>nodeQuery</c>, <c>probePins</c>,
+/// <c>graphTransaction</c>, and the explicitly experimental <c>paste</c>. A minimal
+/// request looks like
 /// <c>{ "op":"setPinValue", "uniqueId":"…", "pin":"…", "value":42, "type":"Int32" }</c>.
+/// </para>
+/// <para>
+/// Cross-frame ops — a verified transaction and a pin probe — defer their result and are
+/// advanced once per frame. While one is pending, later mailbox requests wait so the
+/// observed patch cannot be mutated mid-window.
 /// </para>
 /// Runs on the editor's main thread (vvvv calls Update each frame), which is required
 /// for solution mutations.
@@ -40,6 +47,30 @@ public partial class CommandProcessor
     {
         lastResult = _lastResult;
         if (!enabled) { status = "paused"; return; }
+
+        var verificationResult = TickPendingCompilerVerification();
+        if (verificationResult is not null)
+        {
+            _lastResult = verificationResult;
+            lastResult = verificationResult;
+        }
+        if (HasPendingCompilerVerification)
+        {
+            status = $"verifying compiler result (applied {_applied})";
+            return;
+        }
+
+        var probeResult = TickPendingPinProbe();
+        if (probeResult is not null)
+        {
+            _lastResult = probeResult;
+            lastResult = probeResult;
+        }
+        if (HasPendingPinProbe)
+        {
+            status = $"probing pins (applied {_applied})";
+            return;
+        }
 
         var agentDir = string.IsNullOrWhiteSpace(path) ? ResolveAgentDir() : path;
         if (string.IsNullOrWhiteSpace(agentDir)) { status = "could not resolve project dir — set path"; return; }
@@ -68,9 +99,17 @@ public partial class CommandProcessor
             TryDelete(file);
             _applied++;
             appliedThisFrame++;
+            if (HasPendingCompilerVerification || HasPendingPinProbe)
+                break;
         }
 
-        status = appliedThisFrame > 0 ? $"applied {appliedThisFrame} (total {_applied})" : $"waiting (applied {_applied})";
+        status = HasPendingCompilerVerification
+            ? $"applied {appliedThisFrame}; verifying compiler result (total {_applied})"
+            : HasPendingPinProbe
+                ? $"applied {appliedThisFrame}; probing pins (total {_applied})"
+                : appliedThisFrame > 0
+                    ? $"applied {appliedThisFrame} (total {_applied})"
+                    : $"waiting (applied {_applied})";
     }
 
     private string _lastResult = "";

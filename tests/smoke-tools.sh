@@ -14,16 +14,25 @@ echo "== build vl-mcp =="
 
 MCP_DLL="src/VL.Agent.Mcp/bin/Release/net10.0/vl-mcp.dll"
 
+echo "== compiler verification tracker =="
+"$DOTNET" run --project tests/VL.Agent.Verification.Tests/VL.Agent.Verification.Tests.csproj
+
+echo "== pin probe sampler =="
+"$DOTNET" run --project tests/VL.Agent.PinProbe.Tests/VL.Agent.PinProbe.Tests.csproj
+
 echo "== parse graph transaction schema and examples =="
 python3 - <<'PY'
 import json
 from pathlib import Path
 
-json.load(open("schemas/graph-transaction.schema.json"))
+schema = json.load(open("schemas/graph-transaction.schema.json"))
+assert schema["properties"]["verify"]["properties"]["compiler"]["const"] == "noNewErrors"
 print("ok schemas/graph-transaction.schema.json")
 
 for path in sorted(Path("examples/graph-transactions").glob("*.json")):
-    json.load(open(path))
+    value = json.load(open(path))
+    if path.name == "verify-compiler-no-new-errors.json":
+        assert value["verify"]["compiler"] == "noNewErrors"
     print(f"ok {path}")
 PY
 
@@ -36,6 +45,26 @@ echo "== mcp tools/list contains context query tool =="
 printf '%s\n' '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}' \
   | "$DOTNET" "$MCP_DLL" \
   | grep -q 'vvvv_context_query'
+
+echo "== mcp tools/list describes node-query cache telemetry =="
+printf '%s\n' '{"jsonrpc":"2.0","id":7,"method":"tools/list","params":{}}' \
+  | "$DOTNET" "$MCP_DLL" \
+  | grep -q 'cache telemetry'
+
+echo "== mcp tools/list describes compiler verification =="
+printf '%s\n' '{"jsonrpc":"2.0","id":8,"method":"tools/list","params":{}}' \
+  | "$DOTNET" "$MCP_DLL" \
+  | grep -q 'noNewErrors'
+
+echo "== mcp tools/list contains pin probe tool =="
+printf '%s\n' '{"jsonrpc":"2.0","id":9,"method":"tools/list","params":{}}' \
+  | "$DOTNET" "$MCP_DLL" \
+  | grep -q 'vvvv_probe_pins'
+
+echo "== mcp tools/list describes pin probe sampling =="
+printf '%s\n' '{"jsonrpc":"2.0","id":10,"method":"tools/list","params":{}}' \
+  | "$DOTNET" "$MCP_DLL" \
+  | grep -q 'stuck one'
 
 echo "== mcp resources/list contains graph transaction schema =="
 printf '%s\n' '{"jsonrpc":"2.0","id":3,"method":"resources/list","params":{}}' \

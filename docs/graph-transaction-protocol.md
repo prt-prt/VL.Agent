@@ -43,6 +43,15 @@ text (e.g. `Skia Line`, `LFO`). It returns exact `addNode` symbol strings plus
 pin names/types for the active patch's current compilation, avoiding guessed
 categories.
 
+## Post-apply compiler verification
+
+Transactions can opt into `"verify":{"compiler":"noNewErrors"}`. The bridge
+captures existing compiler errors, applies the edit, then completes the mailbox
+result only after observing a compiler emission and a stable error snapshot.
+Verification failure or timeout leaves the graph edit applied and returns
+`applied:true`; timeout is inconclusive, not a compiler failure. See
+`examples/graph-transactions/verify-compiler-no-new-errors.json`.
+
 ## Supported operations
 
 Current slice: `setPin`, `addNode`, `addPad`, `connect`, `setBounds`, `select`,

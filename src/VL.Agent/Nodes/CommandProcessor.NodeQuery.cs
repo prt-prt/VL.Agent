@@ -2,7 +2,6 @@ using System.Text.Json;
 using System.Drawing;
 using System.Collections;
 using System.Reflection;
-using System.Runtime.CompilerServices;
 using VL.Core;
 using VL.HDE;
 using VL.Lang.Platforms;
@@ -14,13 +13,11 @@ namespace VL.Agent;
 
 public partial class CommandProcessor
 {
-    private const int NodeQueryCacheLimit = 128;
-    private static readonly TimeSpan NodeQueryCacheTtl = TimeSpan.FromMinutes(2);
-    private static readonly object NodeQueryCacheGate = new();
-    private static readonly Dictionary<string, CachedNodeQuery> NodeQueryCache = [];
-    private static readonly Queue<string> NodeQueryCacheOrder = [];
+    private const int NodeQueryResponseCacheLimit = 128;
+    private const int NodeQueryTermCacheLimit = 256;
+    private NodeQueryCatalog? _nodeQueryCatalog;
 
-    private static string NodeQuery(JsonElement root)
+    private string NodeQuery(JsonElement root)
     {
         var query = GetString(root, "query");
         if (string.IsNullOrWhiteSpace(query))
@@ -43,29 +40,37 @@ public partial class CommandProcessor
             if (compilation is null)
                 return Err("nodeQuery failed: no live compilation available (DevEnvHost.Instance.LatestCompilation was null)");
 
-            var cacheKey = NodeQueryCacheKey(query, limit, patch, compilation);
-            if (TryGetCachedNodeQuery(cacheKey, out var cached))
-                return cached;
+            var catalog = GetNodeQueryCatalog(patch, compilation, out var contextReset);
+            var responseKey = NodeQueryResponseKey(query, limit);
+            if (catalog.Responses.TryGetValue(responseKey, out var cachedResults))
+                return NodeQueryResponse(query, cachedResults, contextReset, termHits: 0, termMisses: 0, responseHit: true);
 
             var resolver = SymbolExtensions.GetResolver(patch, compilation);
             if (resolver is null)
                 return Err("nodeQuery failed: could not obtain a symbol resolver for the active patch");
 
-            var terms = query.Split([' ', '\t', '\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            var searchTerms = new[] { query.Trim() }.Concat(terms).Distinct(StringComparer.OrdinalIgnoreCase);
-            var candidates = new List<INodeDefinitionSymbol>();
-            foreach (var term in searchTerms)
+            INodeDefinitionSymbol[] ResolveSymbols(string searchTerm)
             {
+                var symbols = new List<INodeDefinitionSymbol>();
                 foreach (var result in resolver.Scope.GetSymbols<INodeDefinitionSymbol>(
-                             term,
+                             searchTerm,
                              matchSubString: true,
                              includeExtended: true,
                              matcher: _ => true))
                 {
                     if (result.Success && result.ResolvedSymbol is { } symbol)
-                        candidates.Add(symbol);
+                        symbols.Add(symbol);
                 }
+                return symbols.ToArray();
             }
+
+            var terms = query.Split([' ', '\t', '\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            var searchTerms = new[] { query.Trim() }.Concat(terms).Distinct(StringComparer.OrdinalIgnoreCase);
+            var candidates = new List<INodeDefinitionSymbol>();
+            var termHits = 0;
+            var termMisses = 0;
+            foreach (var term in searchTerms)
+                candidates.AddRange(ResolveNodeQueryTerm(catalog, term, ref termHits, ref termMisses, ResolveSymbols));
 
             var seen = new HashSet<string>(StringComparer.Ordinal);
             var results = candidates
@@ -79,16 +84,8 @@ public partial class CommandProcessor
                 .Select(c => NodeCandidateObject(c.Symbol))
                 .ToArray();
 
-            var response = new
-            {
-                ok = true,
-                query,
-                count = results.Length,
-                candidates = results,
-            };
-            var json = JsonSerializer.Serialize(response);
-            CacheNodeQuery(cacheKey, json);
-            return json;
+            CacheNodeQueryResponse(catalog, responseKey, results);
+            return NodeQueryResponse(query, results, contextReset, termHits, termMisses, responseHit: false);
         }
         catch (Exception ex)
         {
@@ -96,50 +93,89 @@ public partial class CommandProcessor
         }
     }
 
-    private static string NodeQueryCacheKey(string query, int limit, Patch patch, object compilation)
-        => string.Join("|", [
-            patch.UniqueId.ToString(),
-            RuntimeHelpers.GetHashCode(compilation).ToString(),
-            limit.ToString(),
-            query.Trim().ToLowerInvariant(),
-        ]);
-
-    private static bool TryGetCachedNodeQuery(string key, out string json)
+    private NodeQueryCatalog GetNodeQueryCatalog(Patch patch, object compilation, out bool contextReset)
     {
-        lock (NodeQueryCacheGate)
+        var patchId = patch.UniqueId.ToString();
+        if (_nodeQueryCatalog is { } current
+            && current.PatchId == patchId
+            && ReferenceEquals(current.Compilation, compilation))
         {
-            if (NodeQueryCache.TryGetValue(key, out var cached)
-                && DateTimeOffset.UtcNow - cached.CreatedAtUtc <= NodeQueryCacheTtl)
-            {
-                json = cached.Json;
-                return true;
-            }
-
-            NodeQueryCache.Remove(key);
+            contextReset = false;
+            return current;
         }
 
-        json = "";
-        return false;
+        contextReset = true;
+        return _nodeQueryCatalog = new NodeQueryCatalog(patchId, compilation);
     }
 
-    private static void CacheNodeQuery(string key, string json)
+    private static string NodeQueryResponseKey(string query, int limit)
+        => $"{limit}|{NormalizeNodeQueryTerm(query)}";
+
+    private static string NormalizeNodeQueryTerm(string term)
+        => term.Trim().ToLowerInvariant();
+
+    private static INodeDefinitionSymbol[] ResolveNodeQueryTerm(
+        NodeQueryCatalog catalog,
+        string term,
+        ref int hits,
+        ref int misses,
+        Func<string, INodeDefinitionSymbol[]> resolve)
     {
-        lock (NodeQueryCacheGate)
+        var key = NormalizeNodeQueryTerm(term);
+        if (catalog.SymbolsByTerm.TryGetValue(key, out var cached))
         {
-            if (NodeQueryCache.ContainsKey(key))
-            {
-                NodeQueryCache[key] = new CachedNodeQuery(json, DateTimeOffset.UtcNow);
-                return;
-            }
-
-            NodeQueryCache[key] = new CachedNodeQuery(json, DateTimeOffset.UtcNow);
-            NodeQueryCacheOrder.Enqueue(key);
-            while (NodeQueryCacheOrder.Count > NodeQueryCacheLimit)
-                NodeQueryCache.Remove(NodeQueryCacheOrder.Dequeue());
+            hits++;
+            return cached;
         }
+
+        misses++;
+        var resultSymbols = resolve(term);
+        catalog.SymbolsByTerm[key] = resultSymbols;
+        catalog.TermOrder.Enqueue(key);
+        while (catalog.TermOrder.Count > NodeQueryTermCacheLimit)
+            catalog.SymbolsByTerm.Remove(catalog.TermOrder.Dequeue());
+        return resultSymbols;
     }
 
-    private readonly record struct CachedNodeQuery(string Json, DateTimeOffset CreatedAtUtc);
+    private static void CacheNodeQueryResponse(NodeQueryCatalog catalog, string key, object[] results)
+    {
+        if (catalog.Responses.ContainsKey(key))
+        {
+            catalog.Responses[key] = results;
+            return;
+        }
+
+        catalog.Responses[key] = results;
+        catalog.ResponseOrder.Enqueue(key);
+        while (catalog.ResponseOrder.Count > NodeQueryResponseCacheLimit)
+            catalog.Responses.Remove(catalog.ResponseOrder.Dequeue());
+    }
+
+    private static string NodeQueryResponse(
+        string query,
+        object[] results,
+        bool contextReset,
+        int termHits,
+        int termMisses,
+        bool responseHit)
+        => JsonSerializer.Serialize(new
+        {
+            ok = true,
+            query,
+            count = results.Length,
+            candidates = results,
+            cache = new { contextReset, termHits, termMisses, responseHit },
+        });
+
+    private sealed class NodeQueryCatalog(string patchId, object compilation)
+    {
+        public string PatchId { get; } = patchId;
+        public object Compilation { get; } = compilation;
+        public Dictionary<string, INodeDefinitionSymbol[]> SymbolsByTerm { get; } = new(StringComparer.Ordinal);
+        public Queue<string> TermOrder { get; } = [];
+        public Dictionary<string, object[]> Responses { get; } = new(StringComparer.Ordinal);
+        public Queue<string> ResponseOrder { get; } = [];
+    }
 
     private static bool NodeCandidateMatches(INodeDefinitionSymbol symbol, string[] terms)
     {

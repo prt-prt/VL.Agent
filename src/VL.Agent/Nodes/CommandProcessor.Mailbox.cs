@@ -32,7 +32,17 @@ public partial class CommandProcessor
             "setPinValue" => SetPinValue(command.Payload, _context),
             "openDocument" => OpenDocument(command.Payload),
             "nodeQuery" => NodeQuery(command.Payload),
-            "graphTransaction" => GraphTransaction(command.Payload, _context),
+            "probePins" => ProbePins(
+                command.Payload,
+                resultsDir,
+                requestFileName,
+                command.Trace),
+            "graphTransaction" => GraphTransaction(
+                command.Payload,
+                _context,
+                resultsDir,
+                requestFileName,
+                command.Trace),
             "paste" => Paste(command.Payload, resultsDir, requestFileName, command.Trace),
             _ => Err($"unknown op '{command.Op}'"),
         };

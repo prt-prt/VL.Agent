@@ -92,7 +92,7 @@ public static class EditorBridge
                 ? node.Pins.Select(DescribeLivePin).ToArray()
                 : null;
             var value = o is ILiveDataHub hub
-                ? SafeText(() => hub.Info.Value)
+                ? PinProbe.SafeText(() => hub.Info.Value)
                 : null;
             return new SelSnapshot(type, elementId, mergeId, documentId, uniqueId,
                 info?.ElementName, info?.SymbolInfoString, kind, info?.IsUnused, messages, pins, value);
@@ -113,17 +113,11 @@ public static class EditorBridge
         var info = pin.Info;
         return new PinSnapshot(
             info.Name,
-            SafeText(() => info.CompiletimeType),
+            PinProbe.SafeText(() => info.CompiletimeType),
             info.IsInput,
             info.IsOptional,
             pin.IsConnected,
-            SafeText(() => info.Value));
-    }
-
-    private static string? SafeText(Func<object?> read)
-    {
-        try { return read()?.ToString(); }
-        catch { return null; }
+            PinProbe.SafeText(() => info.Value));
     }
 
     private record EditorSnapshot(DocSnapshot[] Documents, SelSnapshot[] Selection, MsgSnapshot[] CompilerMessages);

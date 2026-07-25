@@ -37,6 +37,32 @@
       "default": false,
       "description": "If true, the bridge validates and previews the transaction without applying it."
     },
+    "verify": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["compiler"],
+      "description": "Optional post-apply compiler verification. The edit remains applied when verification fails or times out.",
+      "properties": {
+        "compiler": {
+          "const": "noNewErrors",
+          "description": "Fail only for compiler errors not present before the transaction."
+        },
+        "settleFrames": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 30,
+          "default": 2,
+          "description": "Consecutive frames with the same post-emission error snapshot required before completion."
+        },
+        "timeoutFrames": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 600,
+          "default": 120,
+          "description": "Maximum frames to wait for a compiler emission and stable snapshot."
+        }
+      }
+    },
     "ops": {
       "type": "array",
       "minItems": 1,

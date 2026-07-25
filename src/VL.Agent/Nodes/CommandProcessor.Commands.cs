@@ -43,7 +43,12 @@ public partial class CommandProcessor
         return Ok($"set {pin}={value} on {uidStr}" + (verified ? "" : $" (unverified; solution={solution.GetType().FullName}; before={before}; after={after})"));
     }
 
-    private static string GraphTransaction(JsonElement root, NodeContext context)
+    private string? GraphTransaction(
+        JsonElement root,
+        NodeContext context,
+        string resultsDir,
+        string requestFileName,
+        CommandTrace trace)
     {
         var tx = root.TryGetProperty("transaction", out var txEl) ? txEl : root;
         if (!tx.TryGetProperty("schemaVersion", out var versionEl) || versionEl.GetInt32() != 1)
@@ -53,19 +58,48 @@ public partial class CommandProcessor
         if (!tx.TryGetProperty("ops", out var opsEl) || opsEl.ValueKind != JsonValueKind.Array)
             return Err("graphTransaction requires ops array");
 
+        var verificationRequested = TryReadCompilerVerification(tx, out var verification, out var verificationError);
+        if (verificationError is not null)
+            return Err(verificationError);
+
         var dryRun = GetBool(tx, "dryRun");
         var solution = SessionNodes.CurrentSolution;
         var plan = new GraphTxPlan();
 
         PlanTransactionOps(opsEl, plan);
-        AddDefaultValidation(tx, opsEl, plan);
+        AddDefaultValidation(tx, opsEl, plan, skipCompilerDiagnostics: verification is not null);
         ValidateTransaction(plan, dryRun, solution);
+        if (verification is not null && _pendingPastes > 0)
+            plan.Diagnostics.Add("compiler verification cannot start while a deferred paste is pending");
 
         var shouldApply = !dryRun && plan.Diagnostics.Count == 0 && plan.Unsupported.Count == 0 && plan.PlannedOpCount > 0;
+        (long Revision, CompilerDiagnostic[] Diagnostics) baseline = default;
+        if (shouldApply && verification is not null)
+            baseline = EditorMessages.CompilerSnapshot();
         if (shouldApply)
             shouldApply = ApplyTransaction(plan, context, solution);
 
-        return BuildTransactionResult(plan, dryRun, label!, shouldApply);
+        if (shouldApply && verification is not null)
+        {
+            QueueCompilerVerification(
+                resultsDir,
+                requestFileName,
+                trace,
+                plan,
+                label!,
+                verification,
+                baseline.Revision,
+                baseline.Diagnostics);
+            return null;
+        }
+
+        return BuildTransactionResult(
+            plan,
+            dryRun,
+            label!,
+            shouldApply,
+            verificationRequested,
+            outcome: null);
     }
 
     /// <summary>Mutable accumulator for one graph transaction: parsed plans, diagnostics, and apply results.</summary>
@@ -197,11 +231,17 @@ public partial class CommandProcessor
     }
 
     /// <summary>Runs the default validation pass unless the transaction opted out or already included a validate op.</summary>
-    private static void AddDefaultValidation(JsonElement tx, JsonElement opsEl, GraphTxPlan plan)
+    private static void AddDefaultValidation(
+        JsonElement tx,
+        JsonElement opsEl,
+        GraphTxPlan plan,
+        bool skipCompilerDiagnostics)
     {
         var shouldValidate = !tx.TryGetProperty("validate", out var validateEl)
             || validateEl.ValueKind == JsonValueKind.True;
-        if (shouldValidate && !opsEl.EnumerateArray().Any(o => GetString(o, "op") == "validate"))
+        if (shouldValidate
+            && !skipCompilerDiagnostics
+            && !opsEl.EnumerateArray().Any(o => GetString(o, "op") == "validate"))
             plan.Validated += AddDefaultValidationDiagnostics(plan.Diagnostics);
     }
 
@@ -423,13 +463,58 @@ public partial class CommandProcessor
     }
 
     /// <summary>Serializes the transaction outcome in the stable result shape consumed by vl-mcp.</summary>
-    private static string BuildTransactionResult(GraphTxPlan plan, bool dryRun, string label, bool shouldApply)
+    private static string BuildTransactionResult(
+        GraphTxPlan plan,
+        bool dryRun,
+        string label,
+        bool shouldApply,
+        bool verificationRequested = false,
+        CompilerVerificationOutcome? outcome = null)
     {
+        object? verification = null;
+        if (verificationRequested)
+        {
+            if (outcome is null)
+            {
+                verification = new
+                {
+                    requested = true,
+                    status = "notRun",
+                    mode = "noNewErrors",
+                    reason = dryRun ? "dryRun" : "transactionNotApplied",
+                };
+            }
+            else
+            {
+                verification = new
+                {
+                    requested = true,
+                    status = CompilerVerificationStatusText(outcome.Observation.Status),
+                    mode = "noNewErrors",
+                    waitedFrames = outcome.Observation.WaitedFrames,
+                    observedCompilerEmission = outcome.Observation.ObservedCompilerEmission,
+                    settleFrames = outcome.SettleFrames,
+                    timeoutFrames = outcome.TimeoutFrames,
+                    baselineErrorCount = outcome.Observation.BaselineErrorCount,
+                    observedErrorCount = outcome.Observation.ObservedErrorCount,
+                    newErrors = outcome.Observation.NewErrors.Select(error => new
+                    {
+                        severity = error.Severity,
+                        what = error.What,
+                        why = error.Why,
+                    }).ToArray(),
+                };
+            }
+        }
+
+        var verificationOk = outcome is null
+            || outcome.Observation.Status == CompilerVerificationStatus.Passed;
         var result = new
         {
-            ok = plan.Diagnostics.Count == 0 && plan.Unsupported.Count == 0,
+            ok = plan.Diagnostics.Count == 0 && plan.Unsupported.Count == 0 && verificationOk,
             dryRun,
             label,
+            applied = shouldApply,
             partial = !dryRun && plan.Diagnostics.Count > 0 && (plan.Created.Count > 0 || plan.Connected.Count > 0 || plan.Selected.Count > 0),
             appliedOps = shouldApply ? plan.PlannedOpCount : 0,
             checkedOps = plan.PlannedOpCount,
@@ -440,6 +525,7 @@ public partial class CommandProcessor
             connected = plan.Connected,
             selected = plan.Selected,
             diagnostics = plan.Diagnostics,
+            verification,
         };
         return JsonSerializer.Serialize(result);
     }

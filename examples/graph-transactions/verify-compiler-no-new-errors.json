@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "label": "Set LFO period and verify compilation",
+  "verify": {
+    "compiler": "noNewErrors",
+    "settleFrames": 2,
+    "timeoutFrames": 120
+  },
+  "ops": [
+    {
+      "op": "setPin",
+      "target": "<UniqueId>:Period",
+      "value": 5.0,
+      "type": "Float32"
+    }
+  ]
+}

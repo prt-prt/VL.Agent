@@ -11,9 +11,10 @@ editor snapshot written by the in-vvvv `VL.Agent` nodes.
 | `vvvv_index_project` | read-only | Indexes a vvvv project directory (definitions, dependencies, document graph, version drift, missing deps, duplicate IDs, parse failures). |
 | `vvvv_editor_state` | read-only | Reads `.agent/editor-state.json`, written by the in-vvvv `EditorWatcher` node. |
 | `vvvv_context_query` | read-only | Returns compact live editor slices and static `vl-map` graph slices (`projectGraph`, `patchGraph`, `nodeContext`). |
-| `vvvv_node_query` | read-only/live | Queries the active patch's live symbol resolver for node-browser candidates. |
+| `vvvv_node_query` | read-only/live | Queries the active patch's live symbol resolver for node-browser candidates and reports context-scoped cache reuse. |
+| `vvvv_probe_pins` | read-only/live | Samples live pin values on the current selection across frames and reports first/last, distinct count, `changed`, and numeric range. |
 | `vvvv_set_pin_value` | write | Drops a request for the in-vvvv `CommandProcessor` to set one pin value via vvvv's undo-integrated API. |
-| `vvvv_apply_graph_transaction` | experimental | Sends a GraphTransaction batch. See `docs/graph-transaction-protocol.md`. |
+| `vvvv_apply_graph_transaction` | experimental | Sends a GraphTransaction batch, optionally waiting for new compiler-error verification. See `docs/graph-transaction-protocol.md`. |
 | `vvvv_paste` | experimental | Deferred Canvas-snippet paste into the active canvas. |
 
 Writes require a running `CommandProcessor`/`AgentHost` in vvvv and a `UniqueId`

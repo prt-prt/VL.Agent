@@ -169,7 +169,8 @@ internal static class Tools
                 ["description"] =
                     "Query the live vvvv node resolver/node-browser context for addNode candidates. "
                   + "Returns compact operation/process symbols plus input/output pin names and types, scoped "
-                  + "to the current active patch and latest compilation. Use this before creating unfamiliar nodes.",
+                  + "to the current active patch and latest compilation. Use this before creating unfamiliar nodes. "
+                  + "Successful responses include bounded cache telemetry for response and search-term reuse.",
                 ["inputSchema"] = new JsonObject
                 {
                     ["type"] = "object",
@@ -192,6 +193,58 @@ internal static class Tools
                         },
                     },
                     ["required"] = new JsonArray { "query" },
+                },
+            },
+            new JsonObject
+            {
+                ["name"] = "vvvv_probe_pins",
+                ["description"] =
+                    "Read live pin values from the current vvvv editor selection across several frames. "
+                  + "Use this to tell a working edit from one that compiles but does nothing: it reports each "
+                  + "pin's first/last value, distinct sample count, whether the value changed, and numeric "
+                  + "min/max, so a moving value is distinguishable from a stuck one. Read-only; samples the "
+                  + "current selection, so select the element first (the graph-transaction `select` op works). "
+                  + "Requires a running AgentHost/CommandProcessor.",
+                ["inputSchema"] = new JsonObject
+                {
+                    ["type"] = "object",
+                    ["properties"] = new JsonObject
+                    {
+                        ["frames"] = new JsonObject
+                        {
+                            ["type"] = "integer",
+                            ["description"] = "vvvv frames to sample, 1-120. Defaults to 8. Use more for slow movement.",
+                        },
+                        ["pins"] = new JsonObject
+                        {
+                            ["type"] = "array",
+                            ["items"] = new JsonObject { ["type"] = "string" },
+                            ["description"] = "Optional pin-name filter, case-insensitive. Omit to probe every pin.",
+                        },
+                        ["targets"] = new JsonObject
+                        {
+                            ["type"] = "array",
+                            ["items"] = new JsonObject { ["type"] = "string" },
+                            ["description"] =
+                                "Optional element filter, matching UniqueId exactly or element name "
+                              + "case-insensitively. Omit to probe the whole selection.",
+                        },
+                        ["maxValueLength"] = new JsonObject
+                        {
+                            ["type"] = "integer",
+                            ["description"] = "Per-sample text cap, 16-4096. Defaults to 200. Keeps large spreads bounded.",
+                        },
+                        ["maxSamples"] = new JsonObject
+                        {
+                            ["type"] = "integer",
+                            ["description"] = "Retained samples per pin, 1-120. Defaults to 16. Counts stay exact when truncated.",
+                        },
+                        ["agentDir"] = new JsonObject
+                        {
+                            ["type"] = "string",
+                            ["description"] = "Optional override for the .agent directory.",
+                        },
+                    },
                 },
             },
             new JsonObject
@@ -275,7 +328,8 @@ internal static class Tools
                   + "existing node pins as <UniqueId>:<PinName>; created-node connects validate pin direction "
                   + "and type during dry-run/apply. select can select transaction-created aliases or already-selected "
                   + "live UniqueIds. Other structural ops such as disconnect are reported as unsupported "
-                  + "until a safe path is proven.",
+                  + "until a safe path is proven. Optional verify.compiler=noNewErrors waits for a post-apply "
+                  + "compiler emission and reports passed, failed, or timedOut without rolling back the edit.",
                 ["inputSchema"] = new JsonObject
                 {
                     ["type"] = "object",
@@ -291,6 +345,18 @@ internal static class Tools
                                 ["label"] = new JsonObject { ["type"] = "string", ["minLength"] = 1 },
                                 ["dryRun"] = new JsonObject { ["type"] = "boolean" },
                                 ["validate"] = new JsonObject { ["type"] = "boolean" },
+                                ["verify"] = new JsonObject
+                                {
+                                    ["type"] = "object",
+                                    ["description"] = "Optional post-apply compiler verification. Failure or timeout leaves the edit applied.",
+                                    ["properties"] = new JsonObject
+                                    {
+                                        ["compiler"] = new JsonObject { ["type"] = "string", ["const"] = "noNewErrors" },
+                                        ["settleFrames"] = new JsonObject { ["type"] = "integer", ["minimum"] = 1, ["maximum"] = 30 },
+                                        ["timeoutFrames"] = new JsonObject { ["type"] = "integer", ["minimum"] = 1, ["maximum"] = 600 },
+                                    },
+                                    ["required"] = new JsonArray { "compiler" },
+                                },
                                 ["ops"] = new JsonObject
                                 {
                                     ["type"] = "array",
@@ -323,6 +389,7 @@ internal static class Tools
             "vvvv_context_query" => ContextQuery(args),
             "vvvv_set_pin_value" => SetPinValue(args),
             "vvvv_node_query" => NodeQuery(args),
+            "vvvv_probe_pins" => ProbePins(args),
             "vvvv_paste" => Paste(args),
             "vvvv_apply_graph_transaction" => ApplyGraphTransaction(args),
             _ => throw new RpcException(-32602, $"unknown tool: {name}"),
@@ -778,6 +845,18 @@ internal static class Tools
         return SubmitRequest(request, (string?)args?["agentDir"]);
     }
 
+    // Options are forwarded unvalidated on purpose: the bridge owns the ranges and returns
+    // one actionable error, so there is no second copy of the rules to drift from.
+    private static string ProbePins(JsonNode? args)
+    {
+        var request = new JsonObject { ["op"] = "probePins" };
+        foreach (var name in new[] { "frames", "pins", "targets", "maxValueLength", "maxSamples" })
+            if (args?[name] is { } option)
+                request[name] = option.DeepClone();
+
+        return SubmitRequest(request, (string?)args?["agentDir"]);
+    }
+
     private static string Paste(JsonNode? args)
     {
         var snippet = (string?)args?["snippet"];
@@ -996,6 +1075,25 @@ internal static class Tools
         && !value.Contains('\\')
         && !value.Contains('.');
 
+    /// <summary>
+    /// A probe holds the mailbox for its whole sampling window, so its deadline has to cover
+    /// the requested frames plus editor scheduling slack — otherwise a long window reads as
+    /// a timeout even though the bridge is working.
+    /// </summary>
+    private static int DeadlineFor(JsonObject request, string op)
+    {
+        if (!string.Equals(op, "probePins", StringComparison.Ordinal))
+            return request["transaction"]?["verify"] is null ? 5000 : 10000;
+
+        // Mirrors PinProbe.DefaultFrames on the bridge side. The two cannot share a constant
+        // until the path/envelope conventions move into a common assembly; the 5000 ms floor
+        // keeps a drifted default from turning into a spurious timeout.
+        var frames = request["frames"] is JsonValue value && value.TryGetValue<int>(out var requested)
+            ? requested
+            : 8;
+        return Math.Clamp(5000 + (frames * 200), 5000, 40000);
+    }
+
     private static string SubmitRequest(JsonObject request, string? agentDir)
     {
         if (string.IsNullOrWhiteSpace(agentDir)) agentDir = AgentPaths.DefaultAgentDir;
@@ -1009,7 +1107,7 @@ internal static class Tools
         var traceId = id;
         var op = (string?)request["op"] ?? "setPinValue";
         var createdAtUtc = DateTimeOffset.UtcNow;
-        const int deadlineMs = 5000;
+        var deadlineMs = DeadlineFor(request, op);
         var envelope = new JsonObject
         {
             ["schemaVersion"] = 1,
@@ -1028,9 +1126,9 @@ internal static class Tools
         File.WriteAllText(tmp, envelope.ToJsonString());
         File.Move(tmp, requestPath, overwrite: true);
 
-        // Poll for the matching result (~5s). The CommandProcessor applies on the vvvv main loop.
+        // Poll for the matching result. Cross-frame ops get a longer deadline.
         var resultPath = Path.Combine(resultsDir, id + ".json");
-        for (var i = 0; i < 50; i++)
+        for (var i = 0; i < deadlineMs / 100; i++)
         {
             if (File.Exists(resultPath))
             {
